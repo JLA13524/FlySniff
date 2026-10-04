@@ -94,11 +94,16 @@ def read_fit(path: str) -> dict | None:
         "elev_m": sess.get("total_ascent") if sess.get("total_ascent") is not None else sm["ascent_m"],
         "avg_hr": sess.get("avg_heart_rate") or nm(hr_),
         "max_hr": sess.get("max_heart_rate") or mx(hr_),
-        "cadence": sess.get("avg_cadence") or sess.get("avg_running_cadence") or nm(cad_),
+        "cadence": _steps(sport, sess.get("avg_cadence") or sess.get("avg_running_cadence") or nm(cad_)),
         "kudos": np.nan,
         "drift_pct": sm["drift_pct"],
         "speed_cv": sm["speed_cv"],
     }
+
+
+def _steps(sport, cad):
+    """FIT stores running cadence per leg; double it to steps/min like Strava shows."""
+    return cad * 2 if sport == "Run" and cad is not None and np.isfinite(cad) and cad < 120 else cad
 
 
 def _name(path, sport, start, distance) -> str:

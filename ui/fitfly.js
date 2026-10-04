@@ -119,7 +119,7 @@ function fitToActivity(fileName, f) {
   const hr = recs.map(r => r[3] ?? NaN);
   const v = recs.map(r => { const x = g(r, 73, 6); return x == null ? NaN : x / 1000; });
   const alt = recs.map(r => { const x = g(r, 78, 2); return x == null ? NaN : x / 5 - 500; });
-  const cad = recs.map(r => r[4] ?? NaN);
+  const cadRaw = recs.map(r => r[4] ?? NaN);
   const dist = recs.map(r => r[5] == null ? NaN : r[5] / 100);
   const ts = recs.map(r => r[253]).filter(x => x != null);
   if (!recs.length && !f.session) throw new Error('no activity data in file');
@@ -130,13 +130,18 @@ function fitToActivity(fileName, f) {
   const distance = s[9] != null ? s[9] / 100 : maxOf(dist);
   const sportNum = s[5] ?? f.sport ?? 0;
   const type = SPORT_ENUM[sportNum] || 'Workout';
+  // FIT stores running cadence per leg (strides/min); double it to steps/min like Strava shows
+  const legs = x => (type === 'Run' && isF(x) && x < 120 ? x * 2 : x);
+  const cad = cadRaw.map(legs);
   const speed = (s[124] ?? s[14]) != null ? (s[124] ?? s[14]) / 1000 : (moving ? distance / moving : meanOf(v));
   const stem = fileName.replace(/\.fit(\.gz)?$/i, '').replace(/\.gz$/i, '');
   const name = /^\d+$/.test(stem)
     ? [type, date ? date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '', isF(distance) ? (distance / 1000).toFixed(1) + ' km' : ''].filter(Boolean).join(' · ')
     : stem.replace(/[_-]/g, ' ');
   const elev = s[22] != null ? s[22] : sm.ascent_m;
-  const avg_hr = s[16] ?? meanOf(hr), max_hr = s[17] ?? maxOf(hr), cadence = s[18] ?? meanOf(cad);
+  const avg_hr = s[16] ?? meanOf(hr), max_hr = s[17] ?? maxOf(hr), cadence = s[18] != null ? legs(s[18]) : meanOf(cad);
+  const t0s = ts.length ? ts[0] : 0;
+  const tRel = recs.map((r, i) => r[253] != null ? r[253] - t0s : i);
   return {
     id: 'fit:' + stem, name, type, date: date ? date.toISOString() : null,
     distance_m: distance, moving_s: moving, elev_m: elev, avg_hr, max_hr,
@@ -144,6 +149,7 @@ function fitToActivity(fileName, f) {
       type, speed_ms: speed, avg_hr, max_hr, cadence, drift_pct: sm.drift_pct,
       climb: elev / Math.max(distance / 1000, 1), named: INTERVAL_WORDS.test(name) ? 1 : 0, speed_cv: sm.speed_cv,
     },
+    stream: recs.length >= 120 ? { t: tRel, hr, v, alt, cad } : null,
   };
 }
 
@@ -248,7 +254,95 @@ function scoreAgainst(items, poolRaws, circuit) {
       kc_active: K[i].reduce((s, x) => s + (x > 0), 0), kc_pattern: sampleIdx.map((k, j) => K[i][k] > 0 ? j : -1).filter(j => j >= 0),
       mbon: Object.fromEntries(Object.entries(merged).sort().map(([n, v]) => [n, meanOf(v)])),
       innate, learned: mb, valence, verdict: VERDICT(valence), caption: caption(a, valence, contrib),
-      top_smell: topSmell(contrib, valence), raw: a.raw, uploaded: true,
+      top_smell: topSmell(contrib, valence), raw: a.raw, uploaded: true, stream: a.stream || null,
+    };
+  });
+}
+
+
+// ---------------- session playback ----------------
+// Slide a window through the recording and ask the fly about each moment. A minute of
+// your session is the same kind of quantity as a whole session (mean speed, mean HR...),
+// so each window is scored against your sessions' spread: "how does this minute compare
+// with your typical training?"
+function makeScaler(ref) {
+  const col = k => ref.map(r => num(r[k]));
+  const st = xs => { const f = xs.filter(isF), m = meanOf(f); const sd = f.length > 1 ? Math.sqrt(f.reduce((s, x) => s + (x - m) ** 2, 0) / (f.length - 1)) : NaN; return [m, sd]; };
+  const byType = k => { const o = {}; for (const t of new Set(ref.map(r => r.type || ''))) o[t] = st(ref.filter(r => (r.type || '') === t).map(r => num(r[k]))); return o; };
+  const maxHr = col('max_hr'), avgHr = col('avg_hr');
+  const hrmax = maxHr.some(isF) ? maxOf(maxHr) : 190;
+  const proxy = avgHr.map((a, i) => (maxHr[i] - a) / a * 100), pm = meanOf(proxy);
+  const S = {
+    speed: byType('speed_ms'), cadence: byType('cadence'),
+    intensity: st(avgHr.map(a => a / hrmax)),
+    drift: st(col('drift_pct').map((d, i) => isF(d) ? d : proxy[i] - pm + 3)),
+    climb: st(col('climb')), spiky: st(maxHr.map((m, i) => m - avgHr[i])), cv: st(col('speed_cv')),
+  };
+  const z = (x, [m, sd]) => (isF(x) && sd > 0 ? (x - m) / sd : 0);
+  const fz = x => (isF(x) ? Math.max(-3, Math.min(3, x)) : 0);
+  return r => {
+    const t = r.type || '';
+    // a window has no drift until there's enough run to compare against: treat as neutral
+    const drift = isF(r.drift_pct) ? r.drift_pct : r.window ? S.drift[0] : (r.max_hr - r.avg_hr) / r.avg_hr * 100 - pm + 3;
+    return {
+      speed: fz(z(r.speed_ms, S.speed[t] || [NaN, NaN])), easy: fz(-z(r.avg_hr / hrmax, S.intensity)),
+      cadence: fz(z(r.cadence, S.cadence[t] || [NaN, NaN])), hr_drift: fz(z(drift, S.drift)), climb: fz(z(r.climb, S.climb)),
+      intervalness: fz(1.5 * (r.named || 0) + 0.3 * z(r.max_hr - r.avg_hr, S.spiky) + 0.6 * z(r.speed_cv, S.cv)),
+    };
+  };
+}
+
+function windowRaws(a, step = 5) {
+  const { t, hr, v, alt, cad } = a.stream, n = t.length;
+  const at = T => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] <= T) lo = m + 1; else hi = m; } return lo; };
+  const slice = (arr, T0, T1) => arr.slice(at(T0), at(T1));
+  const altS = rolling(interp(alt), 10);
+  const mv = v.map(x => isF(x) && x > 0.5);
+  const eff = (i0, i1) => { let sv = 0, sh = 0, c = 0; for (let i = i0; i < i1; i++) if (mv[i] && isF(hr[i]) && hr[i] > 40) { sv += v[i]; sh += hr[i]; c++; } return c > 30 ? (sv / c) / (sh / c) : NaN; };
+  const e0 = eff(0, at(600));
+  const out = [], end = t[n - 1];
+  for (let T = Math.min(60, end); T <= end; T += step) {
+    const i60 = at(T - 60), i = at(T);
+    const vv = v.slice(i60, i).filter(isF), hh = hr.slice(i60, i).filter(isF);
+    const h3 = slice(hr, T - 180, T).filter(isF);
+    const v5 = slice(v, T - 300, T).filter(x => isF(x) && x > 0.5), r5 = rolling(v5, 30), m5 = meanOf(r5);
+    let up = 0; for (let k = Math.max(at(T - 120), 1); k < i; k++) if (altS[k] > altS[k - 1]) up += altS[k] - altS[k - 1];
+    const dist2 = slice(v, T - 120, T).filter(isF).reduce((s, x) => s + x, 0) / 1000;
+    const eNow = eff(at(T - 300), i);
+    out.push({
+      T, hr: meanOf(hh), v: meanOf(vv),
+      raw: {
+        type: a.type, speed_ms: meanOf(vv), avg_hr: meanOf(hh), max_hr: h3.length ? Math.max(...h3) : NaN,
+        cadence: meanOf(cad.slice(i60, i)), drift_pct: T >= 900 && isF(e0) && isF(eNow) ? (e0 - eNow) / e0 * 100 : NaN,
+        climb: up / Math.max(dist2, 0.2), named: 0, window: true,   // moment by moment, only the data counts, not the name
+        speed_cv: r5.length > 30 && m5 > 0 ? Math.sqrt(meanOf(r5.map(x => (x - m5) ** 2))) / m5 : NaN,
+      },
+    });
+  }
+  return out;
+}
+
+function playbackFrames(a, refRaws, circuit) {
+  const fly = makeFly(circuit), G = circuit.glomeruli;
+  // the fly's sense of "normal" output, from your sessions (same as the verdicts)
+  const RM = featuresFromRaw(refRaws).map(f => fly.mbon(fly.kc(fly.drive(f))));
+  const nm = RM[0].length, mu = [], sd = [];
+  for (let j = 0; j < nm; j++) { const c = RM.map(r => r[j]); const m = meanOf(c); mu.push(m); sd.push(Math.sqrt(meanOf(c.map(x => (x - m) ** 2)))); }
+  const scale = makeScaler(refRaws);
+  const sampleIdx = Array.from({ length: 400 }, (_, i) => Math.floor(i * (circuit.n_kc - 1) / 399));
+  return windowRaws(a).map(w => {
+    const f = scale(w.raw), d = fly.drive(f), k = fly.kc(d), m = fly.mbon(k);
+    const mz = m.map((x, j) => (x - mu[j]) / (sd[j] + 1e-9));
+    const mb = Math.tanh(mz.reduce((s, z, j) => s + z * circuit.mbon_sign[j], 0) / fly.absSign * 2);
+    const innate = Math.tanh(1.5 * G.reduce((s, g, j) => s + (d[j] - 0.3) * INNATE[g], 0));
+    const valence = 0.6 * innate + 0.4 * mb;
+    const contrib = Object.fromEntries(FEATURES.map(ft => { const g = SMELLS[ft][0]; return [ft, Math.max(d[G.indexOf(g)] - 0.35, 0) * INNATE[g]]; }));
+    const merged = {}; circuit.mbon_names.forEach((n, j) => (merged[n] = merged[n] || []).push(mz[j]));
+    return {
+      T: w.T, hr: w.hr, v: w.v, valence, innate, learned: mb, contrib, top_smell: topSmell(contrib, valence),
+      glomeruli: Object.fromEntries(G.map((g, j) => [g, d[j]])),
+      kc_pattern: sampleIdx.map((kk, j) => k[kk] > 0 ? j : -1).filter(j => j >= 0), kc_active: k.reduce((s, x) => s + (x > 0), 0),
+      mbon: Object.fromEntries(Object.entries(merged).map(([n, v]) => [n, meanOf(v)])),
     };
   });
 }

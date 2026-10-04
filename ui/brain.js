@@ -69,16 +69,17 @@ function initBrain(BRAIN, opts) {
 
   const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const CYCLE = 7;
-  function targets(t) {           // per-neuron activity 0..1 at time t (s) into the cycle
+  let live = false, livePhase = '';
+  function targets(t, now) {      // per-neuron activity 0..1 at time t (s) into the cycle
     const out = new Float32Array(N.length); if (!A) return out;
     const on = new Set(A.kc_pattern || []);
     const kcFrac = (A.kc_pattern || []).length / 400;
     const mb = A.mbon || {}, mbMax = Math.max(1, ...Object.values(mb).map(Math.abs));
-    const fade = 1 - sm(CYCLE - 1.2, CYCLE - 0.2, t);
+    const fade = live ? 1 : 1 - sm(CYCLE - 1.2, CYCLE - 0.2, t);
     N.forEach((n, i) => {
       let a = 0;
       if (n.cls === 'pn') a = (A.glomeruli?.[glomOf(n)] ?? 0) * sm(0.2 + jit[i] * 0.3, 0.9 + jit[i] * 0.3, t);
-      else if (n.cls === 'kc') a = on.has(n.slot) ? sm(1.0 + jit[i] * 0.8, 1.5 + jit[i] * 0.8, t) * (0.75 + 0.25 * Math.sin(t * 11 + jit[i] * 40)) : 0;
+      else if (n.cls === 'kc') a = on.has(n.slot) ? sm(1.0 + jit[i] * 0.8, 1.5 + jit[i] * 0.8, t) * (0.75 + 0.25 * Math.sin(now * 11 + jit[i] * 40)) : 0;
       else if (n.cls === 'apl') a = Math.min(1, kcFrac * 12) * sm(1.6, 2.4, t);
       else { const v = mb[n.type] ?? mb[n.type.split('_')[0]] ?? 0; a = Math.min(1, (Math.abs(v) / mbMax) ** 2) * sm(2.4 + jit[i] * 0.6, 3.2 + jit[i] * 0.6, t); }
       out[i] = a * fade;
@@ -87,6 +88,7 @@ function initBrain(BRAIN, opts) {
   }
   function phase(t) {
     if (!A) return '';
+    if (live) return livePhase;
     if (t < 0.9) return 'odour reaches the antennal lobe';
     if (t < 2.0) return `${A.kc_active} Kenyon cells fire · APL clamps the rest`;
     if (t < 3.4) return 'mushroom body output neurons vote';
@@ -113,7 +115,7 @@ function initBrain(BRAIN, opts) {
     if (!drag && !opts.reduce && now - idleAt > 2500) yaw += 0.0025;
     camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
     camera.lookAt(0, 0, 0);
-    const tg = targets(opts.reduce ? 4 : t);
+    const tg = targets(live || opts.reduce ? 4 : t, now / 1000);
     for (let i = 0; i < N.length; i++) level[i] += (tg[i] - level[i]) * 0.25;
     // colour: dim base + glow; the glow travels out along each neuron from its root
     for (let v = 0; v < vNeuron.length; v++) {
@@ -133,9 +135,12 @@ function initBrain(BRAIN, opts) {
       el.hidden = tmp.z > 1; el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * r.width}px, ${(-tmp.y * 0.5 + 0.5) * r.height}px)`;
     });
     document.getElementById('bphase').textContent = phase(t);
-    document.getElementById('bclock').textContent = 't = ' + t.toFixed(2) + ' s';
+    document.getElementById('bclock').textContent = live ? 'live playback' : 't = ' + t.toFixed(2) + ' s';
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { show(a) { A = a; t0 = performance.now(); } };
+  return {
+    show(a) { A = a; live = false; t0 = performance.now(); },
+    live(a, phaseText) { A = a; live = true; livePhase = phaseText; },
+  };
 }

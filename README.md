@@ -88,6 +88,14 @@ response on them: PNs light by glomerulus drive, then the Kenyon cells that actu
 fired, then APL, then MBONs by output. Which neurons light and how strongly comes from
 the model; the timing of the wave is illustrative.
 
+### Playing a session back
+
+For an uploaded `.fit`, **Play session** slides a one-minute window through the
+recording (every 5 s) and asks the fly about each moment: that minute's pace, HR,
+cadence, climbing, speed variability over the last 5 minutes, and decoupling against
+your first 10 minutes. Each moment is scored against the spread of your sessions, so
+reps smell like a PB and the late-session drift smells like CO₂. Click the trace to jump.
+
 ## Notes
 
 - In the male fly, DA1 (the cVA pheromone glomerulus) has 15 PNs against DM1's 2,

@@ -52,6 +52,16 @@ button:focus-visible, li:focus-visible, label.btn:focus-within { outline: 2px so
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
 .bphase { position: absolute; left: 16px; right: 16px; bottom: 16px; pointer-events: none; font: 800 clamp(18px, 2.6vw, 26px)/1.15 var(--display); text-shadow: 0 2px 12px #000; text-wrap: balance; }
 .bphase small { display: block; font: 500 11px/1.4 var(--mono); color: var(--muted); margin-bottom: 4px; }
+/* session playback bar */
+.pb { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 12px 16px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+.pb .speeds { display: flex; gap: 4px; }
+.pb .speeds button { padding: 7px 9px; font: 500 12px/1 var(--mono); }
+.pb .speeds button[aria-pressed="true"] { background: var(--gcamp); color: var(--ink); border-color: var(--gcamp); }
+.pb .time { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.pb .time b { color: var(--fg); font-weight: 500; }
+.pb canvas { grid-column: 1 / -1; width: 100%; height: 72px; display: block; cursor: pointer; touch-action: none; }
+#pbplay { min-width: 150px; }
+@media (max-width: 520px) { .pb { grid-template-columns: auto minmax(0, 1fr); } .pb .time { grid-column: 1 / -1; } }
 #blabels span { position: absolute; left: 0; top: 0; font: 500 10px/1 var(--mono); color: #c8cdea; opacity: .7; white-space: nowrap; pointer-events: none; padding-left: 6px; border-left: 1px solid #c8cdea66; }
 .side { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 .side > .duo, .side > .wide { grid-column: 1 / -1; }
@@ -141,6 +151,15 @@ footer code { font-family: var(--mono); color: var(--fg); }
     </div>
   </div>
 
+  <div class="pb" id="pb" hidden>
+    <button id="pbplay">▶ Play session</button>
+    <div class="speeds" role="group" aria-label="Playback speed">
+      <button class="ghost" data-x="30">30×</button><button class="ghost" data-x="60" aria-pressed="true">60×</button><button class="ghost" data-x="120">120×</button><button class="ghost" data-x="240">240×</button>
+    </div>
+    <span class="time" id="pbtime"></span>
+    <canvas id="pbcv" aria-label="Session trace: speed and heart rate, with the fly's mood underneath. Click to jump."></canvas>
+  </div>
+
   <div class="side">
       <div class="duo">
         <div class="card"><h2>Favourite smell</h2><div class="big" id="love"></div></div>
@@ -192,7 +211,7 @@ const vcol = v => v > 0.05 ? C.approach : v < -0.05 ? C.avoid : C.muted;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
 
-let UPLOADS = [];                 // parsed .fit activities (with raw metrics), scored on every change
+let UPLOADS = [], REF = [];                 // parsed .fit activities (with raw metrics), scored on every change
 
 function load(data) {
   if (!data || !Array.isArray(data.activities) || !data.activities.length) throw new Error("That file doesn't look like flysniff output (no activities). Run python -m flysniff first.");
@@ -208,6 +227,7 @@ function scored() {
   if (!UPLOADS.length) return [];
   const baseRaw = R.activities.map(a => a.raw).filter(r => r && Object.keys(r).length);
   const pool = baseIsDemo() && UPLOADS.length >= 6 ? [] : baseRaw;
+  REF = [...UPLOADS.map(u => u.raw), ...pool];
   return scoreAgainst(UPLOADS, pool, CIRCUIT);
 }
 
@@ -297,6 +317,7 @@ function play(i) {
   $('handle').textContent = '@fly_' + ((A.uploaded ? CIRCUIT.source : R.meta?.circuit?.source) === 'demo' ? 'demo' : 'malecns') + ' · ' + fmtDate(A.date) + ' · ' + A.kc_active + ' KCs fired';
   $('kudos').textContent = A.kudos ?? '–';
   drawGlom(A);
+  setupPlayback(A);
   if (brain) {
     const ok = onBrainCircuit(A);
     brain.show(ok ? A : null);
@@ -311,6 +332,7 @@ function arena() { return { cx: W / 2, cy: H * 0.42, r: Math.min(W * 0.4, H * 0.
 
 function step(now) {
   if (!A) return requestAnimationFrame(step);
+  pbTick(now);
   const t = (now - t0) / 1000, ar = arena(), v = A.valence;
   ctx.clearRect(0, 0, W, H);
   // arena dish
@@ -417,6 +439,99 @@ addEventListener('drop', e => {
   if (!json && !fits.length && fs.length) { $('err').textContent = 'Drop .fit, .fit.gz or results.json files.'; $('err').hidden = false; }
 });
 $('fitfile').onchange = e => { const fs = [...e.target.files]; e.target.value = ''; fs.length && addFits(fs); };
+
+// ---------------- session playback ----------------
+let PB = null;
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+function setupPlayback(a) {
+  PB = a?.stream ? { a, frames: null, t: 0, playing: false, speed: PB?.speed || 60, last: 0, ui: 0 } : null;
+  $('pb').hidden = !PB;
+  if (!PB) return;
+  PB.end = a.stream.t[a.stream.t.length - 1];
+  $('pbplay').textContent = '▶ Play session';
+  $('pbtime').innerHTML = `<b>0:00</b> / ${mmss(PB.end)}`;
+  drawTrace();
+}
+function ensureFrames(then) {
+  if (PB.frames) return then();
+  $('pbplay').textContent = 'the fly is watching…'; $('pbplay').disabled = true;
+  setTimeout(() => {
+    PB.frames = playbackFrames(PB.a, REF.length ? REF : [PB.a.raw], CIRCUIT);
+    $('pbplay').disabled = false; drawTrace(); then();
+  }, 30);
+}
+function togglePlay() {
+  if (!PB) return;
+  ensureFrames(() => {
+    if (PB.playing) { PB.playing = false; $('pbplay').textContent = '▶ Resume'; return; }
+    if (PB.t >= PB.frames[PB.frames.length - 1].T) PB.t = 0;
+    PB.playing = true; PB.last = performance.now(); $('pbplay').textContent = '❚❚ Pause';
+  });
+}
+function liveCaption(f) {
+  const verb = VERDICT(f.valence), smell = SMELLS[f.top_smell][1];
+  if (verb === 'indifferent') return 'the fly is unmoved by this bit.';
+  if (f.contrib[f.top_smell] * f.valence <= 0) return `the fly ${PHRASE[verb] || 'is fleeing'} this bit. it's a mushroom body thing.`;
+  if (verb === 'FLED THE ROOM') return `the fly is fleeing this bit. it ${smell}.`;
+  return `the fly ${PHRASE[verb]} this bit. it ${smell}.`;
+}
+function pbTick(now) {
+  if (!PB?.frames) return;
+  const F = PB.frames;
+  if (PB.playing) {
+    PB.t = Math.max(PB.t, F[0].T) + (now - PB.last) / 1000 * PB.speed; PB.last = now;
+    if (PB.t >= F[F.length - 1].T) { PB.t = F[F.length - 1].T; PB.playing = false; $('pbplay').textContent = '↺ Replay session'; }
+  } else if (!PB.scrubbed) return;
+  PB.scrubbed = false;
+  const f = F[Math.max(0, Math.min(F.length - 1, Math.round((PB.t - F[0].T) / 5)))];
+  A = Object.assign({}, PB.a, f, { verdict: VERDICT(f.valence) });
+  if (now - PB.ui < 200) return;
+  PB.ui = now;
+  const v = f.valence;
+  $('cap').innerHTML = `<span class="v" style="background:${vcol(v)}">live ${mmss(f.T)} · ${esc(A.verdict)} · ${v > 0 ? '+' : ''}${v.toFixed(2)}</span><br>${esc(liveCaption(f))}`;
+  $('pbtime').innerHTML = `<b>${mmss(f.T)}</b> / ${mmss(PB.end)} · ${isFinite(f.hr) ? Math.round(f.hr) + ' bpm' : ''}`;
+  drawGlom(A); drawTrace();
+  if (brain && onBrainCircuit(A)) brain.live(A, v > 0.05 ? 'approaching' : v < -0.05 ? 'backing off' : 'unmoved');
+}
+function drawTrace() {
+  const c = $('pbcv'), r = c.getBoundingClientRect(), d = devicePixelRatio || 1;
+  if (!PB || !r.width) return;
+  c.width = r.width * d; c.height = r.height * d; const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+  const W = r.width, H = r.height, band = 10, s = PB.a.stream, end = PB.end || 1, X = t => t / end * W;
+  g.clearRect(0, 0, W, H);
+  const line = (arr, color, lo, hi) => {
+    g.strokeStyle = color; g.lineWidth = 1.5; g.beginPath(); let pen = false;
+    for (let i = 0; i < arr.length; i += Math.max(1, Math.floor(arr.length / 800))) {
+      const y = H - band - 4 - (arr[i] - lo) / (hi - lo || 1) * (H - band - 10);
+      if (!isFinite(arr[i])) { pen = false; continue; }
+      pen ? g.lineTo(X(s.t[i]), y) : g.moveTo(X(s.t[i]), y); pen = true;
+    }
+    g.stroke();
+  };
+  const fin = a => a.filter(Number.isFinite);
+  const hrs = fin(s.hr), vs = fin(s.v);
+  if (vs.length) line(s.v, C.gcamp, Math.min(...vs), Math.max(...vs));
+  if (hrs.length) line(s.hr, C.avoid + 'aa', Math.min(...hrs), Math.max(...hrs));
+  if (PB.frames) for (const f of PB.frames) { g.fillStyle = vcol(f.valence) + Math.round(40 + Math.min(1, Math.abs(f.valence) * 1.6) * 215).toString(16).padStart(2, '0'); g.fillRect(X(f.T - 2.5), H - band, Math.max(1, X(5)), band); }
+  else { g.fillStyle = C.line; g.fillRect(0, H - band, W, band); }
+  g.fillStyle = C.muted; g.font = '500 10px "IBM Plex Mono", monospace'; g.textBaseline = 'top';
+  g.fillText('speed', 4, 2); g.fillStyle = C.avoid; g.fillText('heart rate', 48, 2); g.fillStyle = C.muted; g.fillText("fly's mood ↓", W - 84, 2);
+  g.fillStyle = '#fff'; g.fillRect(X(PB.t) - 1, 0, 2, H);
+}
+$('pbplay').onclick = togglePlay;
+document.querySelectorAll('.speeds button').forEach(b => b.onclick = () => {
+  if (!PB) return; PB.speed = +b.dataset.x;
+  document.querySelectorAll('.speeds button').forEach(x => x.setAttribute('aria-pressed', x === b));
+});
+(() => {
+  const c = $('pbcv'); let down = false;
+  const seek = e => { if (!PB) return; const r = c.getBoundingClientRect(); const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * PB.end;
+    ensureFrames(() => { PB.t = t; PB.scrubbed = true; PB.last = performance.now(); }); };
+  c.addEventListener('pointerdown', e => { down = true; c.setPointerCapture(e.pointerId); seek(e); });
+  c.addEventListener('pointermove', e => down && seek(e));
+  c.addEventListener('pointerup', () => { down = false; });
+})();
+addEventListener('resize', () => PB && drawTrace());
 
 // 3D brain: only when this page carries the skeletons and the circuit they belong to
 let brain = null;
