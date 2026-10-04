@@ -1,0 +1,328 @@
+<title>Fly Duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: one cinematic arena filling the frame, a broadcast-style score bug on top, and a
+   slim control strip + learning panel underneath. Single committed dark look. */
+:root {
+  --bg: #07060c; --panel: #110f1c; --line: #2a2547; --text: #ece9f6; --muted: #8c88a6;
+  --cyan: #48e5ff; --crimson: #ff3b5c; --gold: #ffd166;
+  --display: "Big Shoulders Display", "Impact", "Arial Narrow", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--text); }
+body { margin: 0; font: 14px/1.45 var(--body); }
+.wrap { max-width: 1400px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 24px; display: grid; gap: 12px; }
+.arena { position: relative; aspect-ratio: 16 / 9; max-width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+.arena canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+@media (max-width: 700px) { .arena { aspect-ratio: 4 / 5; } }
+
+/* score bug */
+.bug { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; z-index: 3;
+  background: #07060ccc; border: 1px solid var(--line); border-radius: 10px; padding: 8px 16px; backdrop-filter: blur(4px); }
+.side { display: flex; align-items: center; gap: 10px; font: 900 22px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.side.r { flex-direction: row-reverse; }
+.side small { font: 500 11px/1 var(--mono); white-space: nowrap; letter-spacing: 0; color: var(--muted); text-transform: none; }
+.pips { display: flex; gap: 5px; }
+.pips i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .9; }
+.pips i.on { background: currentColor; box-shadow: 0 0 10px currentColor; }
+.clock { font: 500 15px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.title { position: absolute; left: 16px; bottom: 14px; z-index: 3; font: 900 34px/0.9 var(--display); letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 2px 20px #000; pointer-events: none; }
+.title span { display: block; font: 500 11px/1.4 var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); margin-top: 6px; }
+.banner { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; }
+.banner div { font: 900 clamp(40px, 8vw, 110px)/0.9 var(--display); letter-spacing: .05em; text-transform: uppercase; text-shadow: 0 0 40px currentColor, 0 4px 30px #000; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+.banner small { display: block; text-align: center; font: 500 14px/1 var(--mono); letter-spacing: 0; text-transform: none; color: var(--text); margin-top: 12px; text-shadow: 0 2px 10px #000; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
+.sound { position: absolute; right: 14px; bottom: 14px; z-index: 3; }
+
+/* controls */
+.strip { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+button, select { font: 500 13px/1 var(--body); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--muted); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.grp { display: flex; align-items: center; gap: 8px; }
+.lab { font: 500 11px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.seg { display: flex; } .seg button { border-radius: 0; margin-left: -1px; font-family: var(--mono); }
+.seg button:first-child { border-radius: 8px 0 0 8px; margin: 0; } .seg button:last-child { border-radius: 0 8px 8px 0; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 900px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.card h2 { margin: 0; font: 700 18px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+#curve { width: 100%; height: 170px; display: block; }
+.card p { margin: 0; max-width: 62ch; color: var(--muted); }
+.card p b { color: var(--text); font-weight: 500; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font: 400 13px/1.3 var(--mono); font-variant-numeric: tabular-nums; }
+.kv span:nth-child(odd) { color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <div class="arena" id="arena">
+    <canvas id="cv" aria-label="Two virtual flies duelling with glowing blades"></canvas>
+    <div class="bug" aria-live="polite">
+      <div class="side" style="color:var(--cyan)"><span>Cyan</span><span class="pips" id="pipsL"></span><small id="genL"></small></div>
+      <div class="clock" id="clock">0:00</div>
+      <div class="side r" style="color:var(--crimson)"><span>Crimson</span><span class="pips" id="pipsR"></span><small id="genR"></small></div>
+    </div>
+    <div class="title">Fly Duel<span>two virtual flies · one learned policy · trained by trial and error</span></div>
+    <div class="banner" id="banner" hidden><div id="bannerText"></div></div>
+    <button class="sound" id="sound" aria-pressed="false">Sound off</button>
+  </div>
+
+  <div class="strip">
+    <button id="play" aria-pressed="false">Pause</button>
+    <button id="bout">New bout</button>
+    <div class="grp"><span class="lab">Speed</span>
+      <div class="seg" id="speed"><button data-x="0.5">0.5×</button><button data-x="1" aria-pressed="true">1×</button><button data-x="2">2×</button></div></div>
+    <button id="slowmo" aria-pressed="true">Slow-mo on hits</button>
+    <div class="grp"><label class="lab" for="selL">Cyan brain</label><select id="selL"></select></div>
+    <div class="grp"><label class="lab" for="selR">Crimson brain</label><select id="selR"></select></div>
+  </div>
+
+  <div class="lower">
+    <div class="card">
+      <h2>How it learned</h2>
+      <canvas id="curve" aria-label="Training curve: reward per duel and hits per minute against training steps"></canvas>
+      <p>Each dot on the axis is a saved brain you can pick above. Early on they wander and wave their blades at nothing. Later they close in, swing on purpose and start blocking each other.</p>
+    </div>
+    <div class="card">
+      <h2>What's going on</h2>
+      <p><b>Same idea as the viral clip:</b> virtual flies trained with PPO, a standard trial-and-error learning algorithm, by fighting copies of themselves. No connectome is involved; the controller is a small neural network (16 inputs, two layers of 64, 3 outputs: walk, turn, swing).</p>
+      <p><b>Simpler than the clip:</b> the fight runs in 2D on the arena floor with a simplified fly body, and was trained right here in a few minutes of CPU.</p>
+      <div class="kv" id="stats"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const CK = __CK__;
+/*__CORE__*/
+</script>
+<script>
+(() => {
+const D = window.FlyDuel, T3 = window.THREE, $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = { cyan: css('--cyan'), crimson: css('--crimson'), gold: css('--gold'), text: css('--text'), muted: css('--muted'), line: css('--line') };
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rng = D.mulberry32((Date.now() % 1e6) | 0);
+D.A.hitsToWin = 5;        // longer bouts than in training (first to 3), so there's more to watch
+
+// ---------------- brains ----------------
+const brains = CK.checkpoints.map(c => ({ iter: c.iter, steps: c.steps, agent: D.unpack(c.agent) }));
+const label = b => b.iter === 0 ? 'untrained' : b.steps >= 1e6 ? `${(b.steps / 1e6).toFixed(2)}M steps` : `${(b.steps / 1000).toFixed(0)}k steps`;
+for (const sel of [$('selL'), $('selR')]) sel.innerHTML = brains.map((b, i) => `<option value="${i}">${label(b)}</option>`).join('');
+$('selL').value = $('selR').value = brains.length - 1;
+
+// ---------------- duel state ----------------
+const env = D.makeEnv(rng), S = { paused: false, speed: 1, slowmo: true, acc: 0, timeScale: 1, slowUntil: 0, prev: null, over: false, sparks: [], flash: 0 };
+let obs;
+function newBout() { obs = env.reset(); S.prev = snapshot(); S.over = false; $('banner').hidden = true; pips(); }
+const snapshot = () => env.f.map(f => ({ x: f.x, y: f.y, h: f.h, a: f.a, w: f.w, v: f.v }));
+function pips() {
+  $('pipsL').innerHTML = [...Array(D.A.hitsToWin).keys()].map(k => `<i class="${k < env.f[0].hits ? 'on' : ''}"></i>`).join('');
+  $('pipsR').innerHTML = [...Array(D.A.hitsToWin).keys()].map(k => `<i class="${k < env.f[1].hits ? 'on' : ''}"></i>`).join('');
+  $('genL').textContent = label(brains[$('selL').value]); $('genR').textContent = label(brains[$('selR').value]);
+}
+function tick() {
+  S.prev = snapshot();
+  const acts = [0, 1].map(i => { const ag = brains[i ? $('selR').value : $('selL').value].agent, s = D.act(ag, obs[i], rng, false);
+    const mu = s.mu, std = ag.logStd.map(Math.exp);   // sample with half the training noise: lively but deliberate
+    return Array.from(mu, (m, k) => m + (s.a[k] - m) * 0.5); });
+  const res = env.step(acts); obs = res.obs;
+  for (const e of env.events) {
+    if (e.type === 'clash') { burst(e.x, e.y, '#ffffff', 26); sfx.clash(); }
+    if (e.type === 'hit') { burst(e.x, e.y, e.by ? COL.crimson : COL.cyan, 60); sfx.hit(); S.flash = 1; pips();
+      if (S.slowmo && !reduce) { S.slowUntil = performance.now() + 1100; S.focus = { x: e.x, y: e.y }; } }
+  }
+  if (res.done) {
+    S.over = true; const [a, b] = [env.f[0].hits, env.f[1].hits];
+    const t = a === b ? 'Draw' : a > b ? 'Cyan wins' : 'Crimson wins';
+    $('bannerText').innerHTML = t + `<small>${a} – ${b} · ${(env.t * D.A.dt).toFixed(1)} s</small>`;
+    $('bannerText').style.color = a === b ? COL.text : a > b ? COL.cyan : COL.crimson;
+    $('banner').hidden = false; setTimeout(newBout, 2600);
+  }
+}
+
+// ---------------- 3D ----------------
+const cv = $('cv'), R = new T3.WebGLRenderer({ canvas: cv, antialias: true });
+R.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new T3.Scene(); scene.background = new T3.Color('#05040a'); scene.fog = new T3.Fog('#05040a', 14, 34);
+const cam = new T3.PerspectiveCamera(42, 16 / 9, 0.1, 200);
+scene.add(new T3.AmbientLight('#2a2547', 0.9));
+const spot = new T3.SpotLight('#d8d2ff', 1.1, 40, 0.6, 0.6); spot.position.set(0, 16, 2); scene.add(spot); scene.add(spot.target);
+// arena floor: dark disc with rings
+const floorTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(512, 512, 40, 512, 512, 512); gr.addColorStop(0, '#1b1830'); gr.addColorStop(1, '#0a0912'); g.fillStyle = gr; g.fillRect(0, 0, 1024, 1024);
+  g.strokeStyle = '#2a2547'; for (let r = 80; r < 512; r += 80) { g.lineWidth = r % 240 === 0 ? 3 : 1; g.beginPath(); g.arc(512, 512, r, 0, 7); g.stroke(); }
+  g.strokeStyle = '#4a4275'; g.lineWidth = 6; g.beginPath(); g.arc(512, 512, 500, 0, 7); g.stroke();
+  return new T3.CanvasTexture(c); })();
+const floor = new T3.Mesh(new T3.CircleGeometry(D.A.R + 0.4, 96), new T3.MeshStandardMaterial({ map: floorTex, roughness: 0.55, metalness: 0.2 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+// glow texture for blades and sparks
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new T3.CanvasTexture(c); })();
+
+function makeFly3D(color) {
+  const G = new T3.Group();
+  const shell = new T3.MeshStandardMaterial({ color: '#3b2f22', roughness: 0.45, metalness: 0.15 });
+  const belly = new T3.MeshStandardMaterial({ color: '#7a6040', roughness: 0.6 });
+  const eye = new T3.MeshStandardMaterial({ color: '#b3121f', roughness: 0.3, emissive: '#3a0005' });
+  const ell = (rx, ry, rz, m, x, y, z) => { const e = new T3.Mesh(new T3.SphereGeometry(1, 20, 14), m); e.scale.set(rx, ry, rz); e.position.set(x, y, z); G.add(e); return e; };
+  ell(0.32, 0.26, 0.26, shell, 0.05, 0.42, 0);                 // thorax
+  ell(0.42, 0.2, 0.22, belly, -0.42, 0.38, 0);                 // abdomen
+  ell(0.17, 0.17, 0.2, shell, 0.38, 0.5, 0);                   // head
+  ell(0.1, 0.12, 0.09, eye, 0.42, 0.53, 0.13); ell(0.1, 0.12, 0.09, eye, 0.42, 0.53, -0.13);
+  const wingMat = new T3.MeshStandardMaterial({ color: '#cfd8ff', transparent: true, opacity: 0.28, side: T3.DoubleSide, roughness: 0.2 });
+  const wings = [1, -1].map(s => { const w = new T3.Mesh(new T3.CircleGeometry(0.5, 20), wingMat); w.scale.set(1, 0.32, 1); w.position.set(-0.25, 0.62, s * 0.28); w.rotation.x = -Math.PI / 2; G.add(w); return w; });
+  const legMat = new T3.MeshStandardMaterial({ color: '#2a2118' });
+  const legs = [];
+  for (const s of [1, -1]) for (const k of [0, 1, 2]) {
+    const l = new T3.Mesh(new T3.CylinderGeometry(0.025, 0.02, 0.6, 6), legMat); l.position.set(0.15 - k * 0.18, 0.2, s * 0.25); l.rotation.x = s * 0.7; G.add(l); legs.push([l, k, s]);
+  }
+  // blade: hilt + white core + coloured glow, pivoting at the front
+  const pivot = new T3.Group(); pivot.position.set(0.42, 0.42, 0); G.add(pivot);
+  const hilt = new T3.Mesh(new T3.CylinderGeometry(0.05, 0.05, 0.28, 10), new T3.MeshStandardMaterial({ color: '#9aa0ad', metalness: 0.8, roughness: 0.3 }));
+  hilt.rotation.z = -Math.PI / 2; hilt.position.x = 0.1; pivot.add(hilt);
+  const L = D.A.blade;
+  const core = new T3.Mesh(new T3.CylinderGeometry(0.035, 0.035, L, 10), new T3.MeshBasicMaterial({ color: '#ffffff' }));
+  core.rotation.z = -Math.PI / 2; core.position.x = 0.24 + L / 2; pivot.add(core);
+  const glowMat = new T3.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: T3.AdditiveBlending, depthWrite: false });
+  const glow = new T3.Mesh(new T3.CylinderGeometry(0.11, 0.11, L + 0.1, 12, 1, true), glowMat); glow.rotation.z = -Math.PI / 2; glow.position.x = 0.24 + L / 2; pivot.add(glow);
+  const halo = new T3.Sprite(new T3.SpriteMaterial({ map: glowTex, color, transparent: true, opacity: 0.5, blending: T3.AdditiveBlending, depthWrite: false }));
+  halo.scale.set(L * 1.4, 0.7, 1); halo.position.x = 0.24 + L / 2; pivot.add(halo);
+  const light = new T3.PointLight(color, 1.4, 5); light.position.set(0.24 + L / 2, 0, 0); pivot.add(light);
+  scene.add(G);
+  return { G, pivot, wings, legs, glow, halo, light };
+}
+const F3 = [makeFly3D(COL.cyan), makeFly3D(COL.crimson)];
+
+// sparks
+const NSP = 400, spPos = new Float32Array(NSP * 3), spCol = new Float32Array(NSP * 3), spG = new T3.BufferGeometry();
+spG.setAttribute('position', new T3.BufferAttribute(spPos, 3)); spG.setAttribute('color', new T3.BufferAttribute(spCol, 3));
+scene.add(new T3.Points(spG, new T3.PointsMaterial({ size: 0.12, map: glowTex, vertexColors: true, transparent: true, blending: T3.AdditiveBlending, depthWrite: false })));
+const sparks = Array.from({ length: NSP }, () => ({ life: 0 }));
+function burst(x, y, color, n) {
+  if (reduce) n = Math.min(n, 8);
+  const c = new T3.Color(color);
+  for (let k = 0, i = 0; i < NSP && k < n; i++) if (sparks[i].life <= 0) {
+    const a = rng() * Math.PI * 2, up = rng() * 3, sp = 2 + rng() * 4;
+    Object.assign(sparks[i], { x, y: 0.5, z: y, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, life: 0.5 + rng() * 0.5, c }); k++;
+  }
+}
+
+function size() { const r = cv.parentElement.getBoundingClientRect(); R.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); }
+new ResizeObserver(size).observe(cv.parentElement); size();
+
+let camAng = 0.6, camFocus = new T3.Vector3();
+const lerpAng = (a, b, t) => { let d = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; return a + d * t; };
+function render(now, alpha, wdt) {
+  const P = S.prev || snapshot();
+  env.f.forEach((f, i) => {
+    const p = P[i], x = p.x + (f.x - p.x) * alpha, y = p.y + (f.y - p.y) * alpha, h = lerpAng(p.h, f.h, alpha), a = p.a + (f.a - p.a) * alpha;
+    const o = F3[i]; o.G.position.set(x, 0, y); o.G.rotation.y = -h; o.pivot.rotation.y = -a;
+    const buzz = Math.sin(now * 0.09 + i) * 0.5; o.wings.forEach((w, k) => (w.rotation.y = (k ? -1 : 1) * (0.3 + buzz * 0.4)));
+    o.legs.forEach(([l, k, s]) => (l.rotation.z = Math.sin(now * 0.02 * (0.3 + Math.abs(f.v)) + k * 2 + (s > 0 ? 0 : 1)) * 0.35 * Math.min(1, Math.abs(f.v))));
+    const hum = 0.5 + 0.08 * Math.sin(now * 0.05 + i * 3) + Math.min(0.4, Math.abs(f.w) * 0.03);
+    o.glow.material.opacity = hum; o.halo.material.opacity = hum * 0.8; o.light.intensity = 1 + hum;
+  });
+  // cinematic camera: slow orbit framing both flies; on a hit, swing in close
+  const [a, b] = env.f, mid = new T3.Vector3((a.x + b.x) / 2, 0.5, (a.y + b.y) / 2), sep = Math.hypot(a.x - b.x, a.y - b.y);
+  const slow = now < S.slowUntil;
+  if (!reduce) camAng += wdt * (slow ? 0.35 : 0.08);
+  const target = slow && S.focus ? new T3.Vector3(S.focus.x, 0.5, S.focus.y) : mid;
+  camFocus.lerp(target, 0.08);
+  const dist = slow ? 3.2 : 5.5 + sep * 0.9, ht = slow ? 1.4 : 3.2 + sep * 0.25;
+  const want = new T3.Vector3(camFocus.x + Math.cos(camAng) * dist, ht, camFocus.z + Math.sin(camAng) * dist);
+  cam.position.lerp(want, slow ? 0.12 : 0.04); cam.lookAt(camFocus);
+  spot.target.position.copy(camFocus);
+  // sparks
+  for (let i = 0; i < NSP; i++) {
+    const s = sparks[i];
+    if (s.life > 0) { s.life -= wdt; s.vy -= 9 * wdt; s.x += s.vx * wdt; s.y = Math.max(0.02, s.y + s.vy * wdt); s.z += s.vz * wdt;
+      spPos.set([s.x, s.y, s.z], i * 3); const k = Math.max(0, s.life) * 1.6; spCol.set([s.c.r * k, s.c.g * k, s.c.b * k], i * 3); }
+    else { spPos.set([0, -99, 0], i * 3); }
+  }
+  spG.attributes.position.needsUpdate = true; spG.attributes.color.needsUpdate = true;
+  scene.background.setRGB(0.02 + S.flash * 0.18, 0.016 + S.flash * 0.15, 0.04 + S.flash * 0.2); S.flash = Math.max(0, S.flash - wdt * 3);
+  R.render(scene, cam);
+}
+
+// ---------------- sound (synthesised, off until asked) ----------------
+const sfx = (() => {
+  let ctx = null, humG = null;
+  const on = () => !!ctx && ctx.state === 'running';
+  function start() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    humG = ctx.createGain(); humG.gain.value = 0.05; humG.connect(ctx.destination);
+    for (const f of [92, 95.5]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; o.connect(lp).connect(humG); o.start(); }
+  }
+  function noise(dur, freq, gain) {
+    if (!on()) return; const n = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.25));
+    const src = ctx.createBufferSource(); src.buffer = n; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 2;
+    const g = ctx.createGain(); g.gain.value = gain; src.connect(bp).connect(g).connect(ctx.destination); src.start();
+  }
+  return {
+    toggle() { if (!ctx) start(); else if (ctx.state === 'running') ctx.suspend(); else ctx.resume(); return !ctx || ctx.state !== 'running'; },
+    swingLevel(w) { if (on() && humG) humG.gain.setTargetAtTime(0.04 + Math.min(0.08, w * 0.006), ctx.currentTime, 0.05); },
+    clash() { noise(0.25, 2400, 0.5); }, hit() { noise(0.45, 700, 0.9); },
+  };
+})();
+
+// ---------------- loop ----------------
+let last = performance.now();
+function frame(now) {
+  const wdt = Math.min(0.05, (now - last) / 1000); last = now;
+  const slow = now < S.slowUntil;
+  if (!S.paused && !S.over) {
+    S.acc += wdt * S.speed * (slow ? 0.22 : 1);
+    while (S.acc >= D.A.dt) { S.acc -= D.A.dt; tick(); if (S.over) break; }
+  }
+  render(now, Math.min(1, S.acc / D.A.dt), wdt * (slow ? 0.35 : 1));
+  sfx.swingLevel(Math.abs(env.f[0].w) + Math.abs(env.f[1].w));
+  $('clock').textContent = (env.t * D.A.dt).toFixed(1) + ' s';
+  requestAnimationFrame(frame);
+}
+
+// ---------------- learning curve ----------------
+function drawCurve() {
+  const c = $('curve'), r = c.getBoundingClientRect(), d = devicePixelRatio || 1; c.width = r.width * d; c.height = r.height * d;
+  const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); const W = r.width, H = r.height, pad = { l: 34, r: 34, t: 10, b: 22 };
+  const log = CK.log, maxS = log[log.length - 1].steps;
+  const sm = (arr, k) => arr.map((_, i) => { const s = arr.slice(Math.max(0, i - k), i + 1).filter(v => v != null); return s.length ? s.reduce((a, b) => a + b, 0) / s.length : null; });
+  const ret = sm(log.map(l => l.meanRet), 8), hpm = sm(log.map(l => l.hitsPerMin), 8);
+  const X = s => pad.l + s / maxS * (W - pad.l - pad.r);
+  const rMax = Math.max(...ret.filter(v => v != null)), rMin = Math.min(0, ...ret.filter(v => v != null)), hMax = Math.max(1, ...hpm.filter(v => v != null));
+  const Yr = v => H - pad.b - (v - rMin) / (rMax - rMin || 1) * (H - pad.b - pad.t), Yh = v => H - pad.b - v / hMax * (H - pad.b - pad.t);
+  g.strokeStyle = COL.line; g.beginPath(); g.moveTo(pad.l, H - pad.b); g.lineTo(W - pad.r, H - pad.b); g.stroke();
+  const line = (vals, Y, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); let pen = false; vals.forEach((v, i) => { if (v == null) { pen = false; return; } const x = X(log[i].steps), y = Y(v); pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true; }); g.stroke(); };
+  line(ret, Yr, COL.gold); line(hpm, Yh, COL.crimson);
+  g.font = '500 11px "IBM Plex Mono", monospace'; g.textBaseline = 'top';
+  g.fillStyle = COL.gold; g.fillText('reward per duel', pad.l + 4, pad.t); g.fillStyle = COL.crimson; g.fillText('hits per minute', pad.l + 150, pad.t);
+  g.fillStyle = COL.muted; g.textAlign = 'right'; g.fillText(hMax.toFixed(0) + '/min', W, pad.t); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillText('0', pad.l, H - 4); g.textAlign = 'right'; g.fillText((maxS / 1e6).toFixed(2) + 'M steps', W - pad.r, H - 4); g.textAlign = 'left';
+  for (const b of brains) { g.fillStyle = COL.text; g.beginPath(); g.arc(X(b.steps), H - pad.b, 3.5, 0, 7); g.fill(); }
+}
+const lastLog = CK.log[CK.log.length - 1];
+$('stats').innerHTML = `<span>training</span><span>${(lastLog.steps / 1e6).toFixed(2)}M steps · ${lastLog.iter} PPO updates</span>
+  <span>policy</span><span>16 → 64 → 64 → 3, tanh</span><span>opponent</span><span>itself (self-play)</span><span>bouts here</span><span>first to 5 hits, 30 s limit (trained on first to 3)</span>`;
+addEventListener('resize', drawCurve);
+
+// ---------------- controls ----------------
+$('play').onclick = () => { S.paused = !S.paused; $('play').textContent = S.paused ? 'Play' : 'Pause'; $('play').setAttribute('aria-pressed', S.paused); };
+$('bout').onclick = newBout;
+document.querySelectorAll('#speed button').forEach(b => b.onclick = () => { S.speed = +b.dataset.x; document.querySelectorAll('#speed button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+$('slowmo').onclick = () => { S.slowmo = !S.slowmo; $('slowmo').setAttribute('aria-pressed', S.slowmo); };
+$('selL').onchange = $('selR').onchange = newBout;
+$('sound').onclick = () => { const off = sfx.toggle(); $('sound').textContent = off ? 'Sound off' : 'Sound on'; $('sound').setAttribute('aria-pressed', !off); };
+
+newBout(); drawCurve(); requestAnimationFrame(frame);
+})();
+</script>
