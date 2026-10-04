@@ -16,6 +16,7 @@ def main() -> None:
     src = p.add_mutually_exclusive_group()
     src.add_argument("--csv", help="Strava bulk-export activities.csv")
     src.add_argument("--api", action="store_true", help="use STRAVA_ACCESS_TOKEN")
+    src.add_argument("--fit", nargs="+", metavar="PATH", help=".fit/.fit.gz files or folders (e.g. export/activities)")
     p.add_argument("--demo", action="store_true", help="synthetic circuit + fake activities (offline)")
     p.add_argument("--demo-circuit", action="store_true", help="synthetic circuit, real activities")
     p.add_argument("-n", type=int, default=60, help="activities to pull from the API")
@@ -31,20 +32,27 @@ def main() -> None:
     elif a.api:
         tok = os.environ.get("STRAVA_ACCESS_TOKEN") or p.error("set STRAVA_ACCESS_TOKEN")
         acts = strava.load_api(tok, a.n, a.streams)
+    elif a.fit:
+        from .fit import load_fit
+        acts = load_fit(a.fit)
     elif a.demo:
         acts = strava.demo_activities()
     else:
-        p.error("pick --csv, --api or --demo")
+        p.error("pick --fit, --csv, --api or --demo")
+    if acts.empty or "speed_ms" not in acts:
+        p.error("no usable activities found")
     acts = acts.dropna(subset=["speed_ms"]).sort_values("date").reset_index(drop=True)
     print(f"{len(acts)} activities")
 
     circuit = get_circuit(a.cache, a.demo or a.demo_circuit, a.dataset)
     print("circuit:", circuit.describe())
 
-    res = Fly(circuit).sniff(acts, strava.features(acts), train_on_kudos=not a.no_learning)
+    raw = strava.raw_metrics(acts)
+    res = Fly(circuit).sniff(acts, strava.features_from_raw(raw), train_on_kudos=not a.no_learning, raw=raw)
     res["meta"] = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "circuit": circuit.describe(),
+        "activities_source": "fit" if a.fit else "csv" if a.csv else "api" if a.api else "demo",
         "glomeruli": [{"name": g, "feature": f, "odour": SMELLS[f][1]}
                       for f in SMELLS for g in [SMELLS[f][0]] if g in GLOMERULI],
     }

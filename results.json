@@ -17,7 +17,18 @@
     "cadence": -1.151,
     "hr_drift": -0.322,
     "climb": -0.175,
-    "intervalness": -0.298
+    "intervalness": -0.6
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 2.8249,
+    "avg_hr": 132.0,
+    "max_hr": 148.0,
+    "cadence": 168.0,
+    "drift_pct": 2.7246,
+    "climb": 5.0,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.052,
@@ -25,7 +36,7 @@
     "VM2": 0.052,
     "V": 0.224,
     "DA2": 0.279,
-    "DA1": 0.232
+    "DA1": 0.142
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -43,39 +54,37 @@
     197,
     210,
     219,
-    242,
     248,
     257,
     276,
     307,
     321,
     336,
-    341,
     369,
     387,
     390,
     393
    ],
    "mbon": {
-    "MBON01": -1.64,
-    "MBON03": -0.67,
-    "MBON04": -1.2,
-    "MBON05": 0.38,
-    "MBON07": -1.82,
-    "MBON11": -1.22,
-    "MBON12": -0.88,
-    "MBON14": -1.71,
-    "MBON15": -0.98,
-    "MBON16": 0.35,
-    "MBON18": -1.17,
-    "MBON19": -1.05
+    "MBON01": -2.2,
+    "MBON03": -0.91,
+    "MBON04": -1.33,
+    "MBON05": 0.16,
+    "MBON07": -2.03,
+    "MBON11": -1.31,
+    "MBON12": -1.19,
+    "MBON14": -1.75,
+    "MBON15": -1.35,
+    "MBON16": 0.26,
+    "MBON18": -1.14,
+    "MBON19": -1.25
    },
-   "innate": 0.3,
-   "learned": -0.559,
-   "valence": -0.044,
+   "innate": 0.395,
+   "learned": -0.529,
+   "valence": 0.025,
    "verdict": "indifferent",
    "caption": "the fly sniffed \u201cEasy recovery jog\u201d and felt nothing.",
-   "top_smell": "speed"
+   "top_smell": "easy"
   },
   {
    "id": "demo1",
@@ -94,7 +103,18 @@
     "cadence": 0.745,
     "hr_drift": 0.476,
     "climb": -0.514,
-    "intervalness": 1.813
+    "intervalness": 2.92
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 3.6232,
+    "avg_hr": 158.0,
+    "max_hr": 186.0,
+    "cadence": 182.0,
+    "drift_pct": 5.0,
+    "climb": 2.0,
+    "named": 1.0,
+    "speed_cv": 0.22
    },
    "glomeruli": {
     "DM1": 0.582,
@@ -102,7 +122,7 @@
     "VM2": 0.709,
     "V": 0.587,
     "DA2": 0.164,
-    "DA1": 0.954
+    "DA1": 0.995
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -125,25 +145,26 @@
     342,
     347,
     369,
+    370,
     377
    ],
    "mbon": {
-    "MBON01": -1.69,
-    "MBON03": -1.54,
-    "MBON04": -2.12,
-    "MBON05": -1.02,
-    "MBON07": -2.24,
-    "MBON11": -0.61,
-    "MBON12": -0.53,
-    "MBON14": -0.83,
-    "MBON15": -2.66,
-    "MBON16": -1.15,
-    "MBON18": -1.75,
-    "MBON19": -1.12
+    "MBON01": -1.72,
+    "MBON03": -1.49,
+    "MBON04": -1.83,
+    "MBON05": -0.91,
+    "MBON07": -2.02,
+    "MBON11": -0.48,
+    "MBON12": -0.39,
+    "MBON14": -0.71,
+    "MBON15": -2.45,
+    "MBON16": -1.01,
+    "MBON18": -1.65,
+    "MBON19": -0.71
    },
-   "innate": -0.421,
-   "learned": -0.129,
-   "valence": -0.304,
+   "innate": -0.461,
+   "learned": -0.003,
+   "valence": -0.278,
    "verdict": "HATES",
    "caption": "the fly hates your Tuesday intervals. it smells like a rival male.",
    "top_smell": "intervalness"
@@ -165,7 +186,18 @@
     "cadence": 1.025,
     "hr_drift": -0.847,
     "climb": -0.741,
-    "intervalness": 1.405
+    "intervalness": 1.104
+   },
+   "raw": {
+    "type": "Ride",
+    "speed_ms": 8.8889,
+    "avg_hr": 148.0,
+    "max_hr": 168.0,
+    "cadence": 92.0,
+    "drift_pct": 1.2284,
+    "climb": 0.0,
+    "named": 1.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.807,
@@ -173,7 +205,7 @@
     "VM2": 0.81,
     "V": 0.092,
     "DA2": 0.111,
-    "DA1": 0.901
+    "DA1": 0.833
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -183,6 +215,7 @@
     70,
     75,
     83,
+    103,
     163,
     183,
     191,
@@ -203,22 +236,22 @@
     377
    ],
    "mbon": {
-    "MBON01": -2.02,
-    "MBON03": -1.63,
-    "MBON04": -1.69,
-    "MBON05": -1.3,
-    "MBON07": -2.11,
-    "MBON11": -1.18,
-    "MBON12": -1.56,
-    "MBON14": -0.92,
-    "MBON15": -2.58,
-    "MBON16": -1.29,
-    "MBON18": -1.97,
-    "MBON19": -1.79
+    "MBON01": -2.34,
+    "MBON03": -1.64,
+    "MBON04": -1.38,
+    "MBON05": -1.35,
+    "MBON07": -1.92,
+    "MBON11": -1.09,
+    "MBON12": -1.52,
+    "MBON14": -0.78,
+    "MBON15": -2.61,
+    "MBON16": -1.3,
+    "MBON18": -1.84,
+    "MBON19": -1.59
    },
-   "innate": 0.819,
-   "learned": -0.513,
-   "valence": 0.286,
+   "innate": 0.844,
+   "learned": -0.417,
+   "valence": 0.34,
    "verdict": "LOVES",
    "caption": "the fly loves \u201cSweet spot turbo\u201d. it smells like a PB.",
    "top_smell": "speed"
@@ -240,7 +273,18 @@
     "cadence": 0.0,
     "hr_drift": -1.177,
     "climb": -0.741,
-    "intervalness": 0.007
+    "intervalness": -0.295
+   },
+   "raw": {
+    "type": "Swim",
+    "speed_ms": 0.8333,
+    "avg_hr": 128.0,
+    "max_hr": 150.0,
+    "cadence": null,
+    "drift_pct": 0.288,
+    "climb": 0.0,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.693,
@@ -248,10 +292,11 @@
     "VM2": 0.354,
     "V": 0.05,
     "DA2": 0.111,
-    "DA1": 0.358
+    "DA1": 0.233
    },
    "kc_active": 100,
    "kc_pattern": [
+    15,
     18,
     97,
     119,
@@ -273,26 +318,25 @@
     336,
     351,
     369,
-    377,
     393
    ],
    "mbon": {
-    "MBON01": -2.81,
-    "MBON03": -2.05,
-    "MBON04": -2.05,
-    "MBON05": -1.35,
-    "MBON07": -1.93,
-    "MBON11": -2.22,
-    "MBON12": -2.77,
-    "MBON14": -1.5,
-    "MBON15": -1.92,
-    "MBON16": -1.15,
-    "MBON18": -1.97,
-    "MBON19": -2.37
+    "MBON01": -3.25,
+    "MBON03": -2.24,
+    "MBON04": -1.91,
+    "MBON05": -1.31,
+    "MBON07": -2.05,
+    "MBON11": -2.2,
+    "MBON12": -2.94,
+    "MBON14": -1.54,
+    "MBON15": -2.15,
+    "MBON16": -1.22,
+    "MBON18": -1.91,
+    "MBON19": -2.46
    },
-   "innate": 0.97,
-   "learned": -0.661,
-   "valence": 0.317,
+   "innate": 0.977,
+   "learned": -0.655,
+   "valence": 0.325,
    "verdict": "LOVES",
    "caption": "the fly loves \u201cLunch swim\u201d. it smells like a lovely recovery jog.",
    "top_smell": "easy"
@@ -314,7 +358,18 @@
     "cadence": 0.203,
     "hr_drift": -0.934,
     "climb": -0.363,
-    "intervalness": 1.304
+    "intervalness": 1.002
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 3.4722,
+    "avg_hr": 154.0,
+    "max_hr": 172.0,
+    "cadence": 178.0,
+    "drift_pct": 0.9809,
+    "climb": 3.3333,
+    "named": 1.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.43,
@@ -322,7 +377,7 @@
     "VM2": 0.452,
     "V": 0.078,
     "DA2": 0.21,
-    "DA1": 0.882
+    "DA1": 0.803
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -333,10 +388,12 @@
     75,
     83,
     153,
+    163,
     183,
     191,
     197,
     225,
+    236,
     257,
     272,
     276,
@@ -344,28 +401,27 @@
     317,
     319,
     336,
-    341,
     342,
     347,
     377
    ],
    "mbon": {
-    "MBON01": -1.3,
-    "MBON03": -1.2,
-    "MBON04": -1.88,
-    "MBON05": -0.28,
-    "MBON07": -2.18,
+    "MBON01": -1.65,
+    "MBON03": -1.33,
+    "MBON04": -1.68,
+    "MBON05": -0.45,
+    "MBON07": -2.07,
     "MBON11": -0.7,
-    "MBON12": -1.38,
-    "MBON14": -0.81,
-    "MBON15": -1.22,
+    "MBON12": -1.4,
+    "MBON14": -0.74,
+    "MBON15": -1.15,
     "MBON16": -0.58,
-    "MBON18": -1.98,
-    "MBON19": -0.95
+    "MBON18": -1.91,
+    "MBON19": -0.83
    },
-   "innate": -0.071,
-   "learned": -0.383,
-   "valence": -0.196,
+   "innate": 0.024,
+   "learned": -0.264,
+   "valence": -0.091,
    "verdict": "not a fan",
    "caption": "the fly is not a fan of \u201cTempo run along the canal\u201d. it smells like a rival male.",
    "top_smell": "intervalness"
@@ -387,7 +443,18 @@
     "cadence": -1.317,
     "hr_drift": 1.88,
     "climb": 0.715,
-    "intervalness": 0.669
+    "intervalness": 0.367
+   },
+   "raw": {
+    "type": "Ride",
+    "speed_ms": 7.5,
+    "avg_hr": 141.0,
+    "max_hr": 176.0,
+    "cadence": 84.0,
+    "drift_pct": 9.0,
+    "climb": 12.8571,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.044,
@@ -395,7 +462,7 @@
     "VM2": 0.038,
     "V": 0.959,
     "DA2": 0.696,
-    "DA1": 0.677
+    "DA1": 0.533
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -409,7 +476,6 @@
     119,
     159,
     164,
-    177,
     186,
     191,
     197,
@@ -419,29 +485,27 @@
     290,
     307,
     335,
-    341,
-    347,
     369,
     370,
     387
    ],
    "mbon": {
-    "MBON01": 0.11,
-    "MBON03": 0.48,
-    "MBON04": 0.21,
-    "MBON05": 0.89,
-    "MBON07": -0.16,
-    "MBON11": 1.55,
-    "MBON12": 0.68,
-    "MBON14": -0.1,
-    "MBON15": 1.19,
-    "MBON16": 1.83,
-    "MBON18": -0.46,
-    "MBON19": 1.4
+    "MBON01": -0.03,
+    "MBON03": 0.54,
+    "MBON04": 0.32,
+    "MBON05": 1.22,
+    "MBON07": -0.05,
+    "MBON11": 1.57,
+    "MBON12": 0.51,
+    "MBON14": 0.1,
+    "MBON15": 1.49,
+    "MBON16": 1.98,
+    "MBON18": -0.34,
+    "MBON19": 1.37
    },
-   "innate": -0.988,
-   "learned": 0.551,
-   "valence": -0.372,
+   "innate": -0.983,
+   "learned": 0.578,
+   "valence": -0.358,
    "verdict": "HATES",
    "caption": "the fly hates \u201cLong hilly ride \u2013 Chilterns\u201d. it smells like panic (CO2).",
    "top_smell": "hr_drift"
@@ -463,7 +527,18 @@
     "cadence": -0.609,
     "hr_drift": 1.353,
     "climb": 0.122,
-    "intervalness": -0.145
+    "intervalness": -0.447
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 3.1447,
+    "avg_hr": 146.0,
+    "max_hr": 165.0,
+    "cadence": 172.0,
+    "drift_pct": 7.5,
+    "climb": 7.619,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.166,
@@ -471,21 +546,20 @@
     "VM2": 0.14,
     "V": 0.892,
     "DA2": 0.412,
-    "DA1": 0.291
+    "DA1": 0.183
    },
    "kc_active": 100,
    "kc_pattern": [
     18,
-    20,
     35,
     75,
-    83,
     97,
     118,
     119,
+    140,
     159,
+    163,
     164,
-    177,
     186,
     191,
     197,
@@ -500,22 +574,22 @@
     387
    ],
    "mbon": {
-    "MBON01": -1.97,
-    "MBON03": -1.6,
-    "MBON04": -1.38,
-    "MBON05": 0.87,
-    "MBON07": -0.32,
-    "MBON11": 0.65,
-    "MBON12": -1.02,
-    "MBON14": -0.83,
-    "MBON15": -0.85,
-    "MBON16": 0.27,
-    "MBON18": -0.81,
-    "MBON19": -0.32
+    "MBON01": -1.96,
+    "MBON03": -1.47,
+    "MBON04": -1.18,
+    "MBON05": 1.1,
+    "MBON07": 0.16,
+    "MBON11": 0.69,
+    "MBON12": -0.9,
+    "MBON14": -0.62,
+    "MBON15": -0.54,
+    "MBON16": 0.35,
+    "MBON18": -0.73,
+    "MBON19": -0.24
    },
-   "innate": -0.881,
-   "learned": 0.47,
-   "valence": -0.341,
+   "innate": -0.849,
+   "learned": 0.542,
+   "valence": -0.293,
    "verdict": "HATES",
    "caption": "the fly hates \u201cLong Sunday run\u201d. it smells like panic (CO2).",
    "top_smell": "hr_drift"
@@ -537,7 +611,18 @@
     "cadence": -1.421,
     "hr_drift": -0.974,
     "climb": -0.363,
-    "intervalness": -0.502
+    "intervalness": -0.804
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 2.7778,
+    "avg_hr": 128.0,
+    "max_hr": 140.0,
+    "cadence": 166.0,
+    "drift_pct": 0.8669,
+    "climb": 3.3333,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.043,
@@ -545,7 +630,7 @@
     "VM2": 0.031,
     "V": 0.073,
     "DA2": 0.21,
-    "DA1": 0.168
+    "DA1": 0.099
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -565,6 +650,7 @@
     212,
     219,
     242,
+    248,
     257,
     276,
     307,
@@ -576,24 +662,24 @@
     393
    ],
    "mbon": {
-    "MBON01": -2.04,
-    "MBON03": -0.79,
-    "MBON04": -1.98,
-    "MBON05": 0.14,
-    "MBON07": -1.98,
-    "MBON11": -1.58,
+    "MBON01": -2.37,
+    "MBON03": -0.63,
+    "MBON04": -1.77,
+    "MBON05": 0.25,
+    "MBON07": -1.89,
+    "MBON11": -1.44,
     "MBON12": -1.28,
-    "MBON14": -1.97,
+    "MBON14": -1.89,
     "MBON15": -1.48,
-    "MBON16": -0.03,
-    "MBON18": -1.21,
-    "MBON19": -1.39
+    "MBON16": 0.07,
+    "MBON18": -0.99,
+    "MBON19": -1.36
    },
-   "innate": 0.676,
-   "learned": -0.602,
-   "valence": 0.165,
-   "verdict": "into it",
-   "caption": "the fly is into \u201cEasy shakeout\u201d. it smells like a lovely recovery jog.",
+   "innate": 0.718,
+   "learned": -0.551,
+   "valence": 0.21,
+   "verdict": "LOVES",
+   "caption": "the fly loves \u201cEasy shakeout\u201d. it smells like a lovely recovery jog.",
    "top_smell": "easy"
   },
   {
@@ -613,7 +699,18 @@
     "cadence": 1.015,
     "hr_drift": 0.652,
     "climb": -0.484,
-    "intervalness": 1.813
+    "intervalness": 2.92
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 3.7037,
+    "avg_hr": 161.0,
+    "max_hr": 189.0,
+    "cadence": 184.0,
+    "drift_pct": 5.5,
+    "climb": 2.2727,
+    "named": 1.0,
+    "speed_cv": 0.22
    },
    "glomeruli": {
     "DM1": 0.659,
@@ -621,7 +718,7 @@
     "VM2": 0.807,
     "V": 0.669,
     "DA2": 0.173,
-    "DA1": 0.954
+    "DA1": 0.995
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -647,22 +744,22 @@
     377
    ],
    "mbon": {
-    "MBON01": -1.86,
-    "MBON03": -1.54,
-    "MBON04": -2.04,
-    "MBON05": -1.09,
-    "MBON07": -2.13,
-    "MBON11": -0.55,
+    "MBON01": -2.07,
+    "MBON03": -1.68,
+    "MBON04": -1.84,
+    "MBON05": -1.1,
+    "MBON07": -2.08,
+    "MBON11": -0.52,
     "MBON12": -0.46,
-    "MBON14": -0.79,
-    "MBON15": -2.91,
-    "MBON16": -1.28,
-    "MBON18": -1.63,
-    "MBON19": -1.16
+    "MBON14": -0.74,
+    "MBON15": -2.87,
+    "MBON16": -1.22,
+    "MBON18": -1.66,
+    "MBON19": -0.86
    },
-   "innate": -0.399,
-   "learned": -0.08,
-   "valence": -0.272,
+   "innate": -0.44,
+   "learned": 0.014,
+   "valence": -0.258,
    "verdict": "HATES",
    "caption": "the fly hates your Tuesday intervals. it smells like a rival male.",
    "top_smell": "intervalness"
@@ -684,7 +781,18 @@
     "cadence": -0.146,
     "hr_drift": -0.55,
     "climb": -0.024,
-    "intervalness": -0.196
+    "intervalness": -0.498
+   },
+   "raw": {
+    "type": "Ride",
+    "speed_ms": 8.0556,
+    "avg_hr": 132.0,
+    "max_hr": 150.0,
+    "cadence": 88.0,
+    "drift_pct": 2.0747,
+    "climb": 6.3333,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.218,
@@ -692,7 +800,7 @@
     "VM2": 0.291,
     "V": 0.154,
     "DA2": 0.344,
-    "DA1": 0.27
+    "DA1": 0.168
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -703,6 +811,7 @@
     119,
     159,
     163,
+    164,
     183,
     186,
     189,
@@ -712,34 +821,35 @@
     210,
     224,
     242,
+    248,
     257,
     276,
     307,
     312,
     321,
     336,
+    351,
     369,
-    377,
     387,
     393
    ],
    "mbon": {
-    "MBON01": -1.6,
-    "MBON03": -0.92,
-    "MBON04": -1.45,
-    "MBON05": -0.18,
-    "MBON07": -1.31,
-    "MBON11": -1.53,
-    "MBON12": -1.12,
-    "MBON14": -1.77,
-    "MBON15": -1.12,
-    "MBON16": -0.37,
-    "MBON18": -1.5,
-    "MBON19": -1.81
+    "MBON01": -1.73,
+    "MBON03": -1.02,
+    "MBON04": -1.3,
+    "MBON05": -0.19,
+    "MBON07": -1.38,
+    "MBON11": -1.38,
+    "MBON12": -1.22,
+    "MBON14": -1.59,
+    "MBON15": -1.19,
+    "MBON16": -0.33,
+    "MBON18": -1.41,
+    "MBON19": -1.91
    },
-   "innate": 0.608,
-   "learned": -0.639,
-   "valence": 0.109,
+   "innate": 0.679,
+   "learned": -0.605,
+   "valence": 0.166,
    "verdict": "into it",
    "caption": "the fly is into \u201cZ2 endurance ride\u201d. it smells like a lovely recovery jog.",
    "top_smell": "easy"
@@ -761,7 +871,18 @@
     "cadence": 0.0,
     "hr_drift": -0.747,
     "climb": -0.741,
-    "intervalness": -0.044
+    "intervalness": -0.346
+   },
+   "raw": {
+    "type": "Swim",
+    "speed_ms": 0.7937,
+    "avg_hr": 131.0,
+    "max_hr": 152.0,
+    "cadence": null,
+    "drift_pct": 1.5146,
+    "climb": 0.0,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.118,
@@ -769,13 +890,14 @@
     "VM2": 0.354,
     "V": 0.11,
     "DA2": 0.111,
-    "DA1": 0.335
+    "DA1": 0.216
    },
    "kc_active": 100,
    "kc_pattern": [
     12,
     15,
     18,
+    59,
     97,
     102,
     159,
@@ -787,7 +909,6 @@
     210,
     219,
     230,
-    242,
     257,
     276,
     307,
@@ -800,22 +921,22 @@
     393
    ],
    "mbon": {
-    "MBON01": -0.95,
-    "MBON03": -0.41,
-    "MBON04": -1.88,
-    "MBON05": 1.08,
-    "MBON07": 0.12,
-    "MBON11": -1.47,
-    "MBON12": 0.31,
-    "MBON14": -1.75,
-    "MBON15": -1.19,
-    "MBON16": -0.37,
-    "MBON18": -1.17,
-    "MBON19": -1.0
+    "MBON01": -1.16,
+    "MBON03": -0.83,
+    "MBON04": -1.97,
+    "MBON05": 0.67,
+    "MBON07": -0.29,
+    "MBON11": -1.52,
+    "MBON12": 0.08,
+    "MBON14": -1.79,
+    "MBON15": -1.68,
+    "MBON16": -0.45,
+    "MBON18": -1.21,
+    "MBON19": -1.31
    },
-   "innate": 0.796,
-   "learned": -0.421,
-   "valence": 0.309,
+   "innate": 0.842,
+   "learned": -0.432,
+   "valence": 0.333,
    "verdict": "LOVES",
    "caption": "the fly loves \u201cOpen water swim\u201d. it smells like a lovely recovery jog.",
    "top_smell": "easy"
@@ -837,7 +958,18 @@
     "cadence": 1.286,
     "hr_drift": -0.637,
     "climb": -0.061,
-    "intervalness": -0.145
+    "intervalness": -0.447
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 4.2735,
+    "avg_hr": 171.0,
+    "max_hr": 190.0,
+    "cadence": 186.0,
+    "drift_pct": 1.8271,
+    "climb": 6.0,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.951,
@@ -845,7 +977,7 @@
     "VM2": 0.878,
     "V": 0.133,
     "DA2": 0.327,
-    "DA1": 0.291
+    "DA1": 0.183
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -871,22 +1003,22 @@
     369
    ],
    "mbon": {
-    "MBON01": -0.79,
-    "MBON03": 0.37,
-    "MBON04": 0.73,
-    "MBON05": -0.19,
-    "MBON07": -0.56,
-    "MBON11": 0.49,
-    "MBON12": 0.42,
-    "MBON14": 0.66,
-    "MBON15": -1.69,
-    "MBON16": -1.18,
-    "MBON18": 1.21,
-    "MBON19": -1.44
+    "MBON01": -0.81,
+    "MBON03": 0.38,
+    "MBON04": 0.78,
+    "MBON05": -0.08,
+    "MBON07": -0.46,
+    "MBON11": 0.48,
+    "MBON12": 0.52,
+    "MBON14": 0.57,
+    "MBON15": -1.63,
+    "MBON16": -1.25,
+    "MBON18": 1.05,
+    "MBON19": -1.39
    },
-   "innate": 0.867,
-   "learned": -0.103,
-   "valence": 0.479,
+   "innate": 0.896,
+   "learned": -0.13,
+   "valence": 0.486,
    "verdict": "LOVES",
    "caption": "the fly loves \u201cParkrun PB attempt\u201d. it smells like a PB.",
    "top_smell": "speed"
@@ -908,7 +1040,18 @@
     "cadence": 0.439,
     "hr_drift": 0.827,
     "climb": 0.21,
-    "intervalness": 0.109
+    "intervalness": -0.193
+   },
+   "raw": {
+    "type": "Ride",
+    "speed_ms": 8.6111,
+    "avg_hr": 150.0,
+    "max_hr": 174.0,
+    "cadence": 90.0,
+    "drift_pct": 6.0,
+    "climb": 8.4,
+    "named": 0.0,
+    "speed_cv": 0.06
    },
    "glomeruli": {
     "DM1": 0.629,
@@ -916,7 +1059,7 @@
     "VM2": 0.569,
     "V": 0.742,
     "DA2": 0.455,
-    "DA1": 0.406
+    "DA1": 0.272
    },
    "kc_active": 100,
    "kc_pattern": [
@@ -935,32 +1078,32 @@
     257,
     276,
     290,
-    317,
+    312,
+    318,
     321,
     336,
-    342,
     347,
     369
    ],
    "mbon": {
-    "MBON01": -2.11,
+    "MBON01": -1.79,
     "MBON03": -1.54,
-    "MBON04": -0.97,
-    "MBON05": -0.82,
-    "MBON07": -0.94,
-    "MBON11": -0.17,
-    "MBON12": -0.72,
-    "MBON14": -0.72,
-    "MBON15": -2.13,
-    "MBON16": -1.17,
-    "MBON18": -0.86,
-    "MBON19": -1.68
+    "MBON04": -0.29,
+    "MBON05": -0.4,
+    "MBON07": -0.26,
+    "MBON11": -0.02,
+    "MBON12": -0.29,
+    "MBON14": -0.5,
+    "MBON15": -1.95,
+    "MBON16": -1.1,
+    "MBON18": -0.54,
+    "MBON19": -1.42
    },
-   "innate": -0.426,
-   "learned": 0.005,
-   "valence": -0.253,
-   "verdict": "HATES",
-   "caption": "the fly hates \u201cBrick: bike + run off\u201d. it smells like panic (CO2).",
+   "innate": -0.286,
+   "learned": 0.085,
+   "valence": -0.137,
+   "verdict": "not a fan",
+   "caption": "the fly is not a fan of \u201cBrick: bike + run off\u201d. it smells like panic (CO2).",
    "top_smell": "hr_drift"
   },
   {
@@ -980,7 +1123,18 @@
     "cadence": -0.068,
     "hr_drift": 1.002,
     "climb": 3.0,
-    "intervalness": 0.211
+    "intervalness": 1.318
+   },
+   "raw": {
+    "type": "Run",
+    "speed_ms": 3.3333,
+    "avg_hr": 159.0,
+    "max_hr": 185.0,
+    "cadence": 176.0,
+    "drift_pct": 6.5,
+    "climb": 34.4444,
+    "named": 0.0,
+    "speed_cv": 0.22
    },
    "glomeruli": {
     "DM1": 0.3,
@@ -988,43 +1142,46 @@
     "VM2": 0.324,
     "V": 0.803,
     "DA2": 0.996,
-    "DA1": 0.456
+    "DA1": 0.885
    },
    "kc_active": 100,
    "kc_pattern": [
+    18,
     20,
+    21,
     75,
     83,
-    118,
     163,
     164,
     183,
     186,
     197,
-    248,
     257,
     276,
-    290,
+    305,
+    317,
     347,
-    369
+    370,
+    377,
+    391
    ],
    "mbon": {
-    "MBON01": -2.59,
-    "MBON03": -1.59,
-    "MBON04": -1.46,
-    "MBON05": -1.58,
-    "MBON07": -1.77,
-    "MBON11": -0.22,
-    "MBON12": -0.97,
-    "MBON14": -0.8,
-    "MBON15": -1.53,
-    "MBON16": -0.54,
-    "MBON18": -1.51,
-    "MBON19": -1.52
+    "MBON01": -2.65,
+    "MBON03": -1.72,
+    "MBON04": -1.62,
+    "MBON05": -1.67,
+    "MBON07": -2.04,
+    "MBON11": -0.11,
+    "MBON12": -0.94,
+    "MBON14": -0.91,
+    "MBON15": -1.31,
+    "MBON16": -0.33,
+    "MBON18": -1.85,
+    "MBON19": -0.47
    },
-   "innate": -0.989,
-   "learned": 0.22,
-   "valence": -0.505,
+   "innate": -0.996,
+   "learned": 0.393,
+   "valence": -0.44,
    "verdict": "HATES",
    "caption": "the fly hates \u201cHill repeats\u201d. it smells like a damp hillside, literally.",
    "top_smell": "climb"
@@ -1035,22 +1192,22 @@
   "most_loved": "demo11",
   "most_hated": "demo13",
   "by_weekday": {
-   "Monday": 0.061,
-   "Tuesday": -0.288,
-   "Wednesday": 0.197,
-   "Thursday": 0.313,
-   "Friday": 0.141,
-   "Saturday": -0.312,
-   "Sunday": -0.423
+   "Monday": 0.117,
+   "Tuesday": -0.268,
+   "Wednesday": 0.253,
+   "Thursday": 0.329,
+   "Friday": 0.198,
+   "Saturday": -0.247,
+   "Sunday": -0.366
   },
   "by_type": {
-   "Run": -0.127,
-   "Ride": -0.058,
-   "Swim": 0.313
+   "Run": -0.08,
+   "Ride": 0.003,
+   "Swim": 0.329
   }
  },
  "meta": {
-  "generated": "2026-10-04T15:34:18+00:00",
+  "generated": "2026-10-04T15:55:30+00:00",
   "circuit": {
    "source": "demo",
    "n_pn": 16,
@@ -1059,6 +1216,7 @@
    "pn_kc_synapses": 84437,
    "kc_mbon_synapses": 17819
   },
+  "activities_source": "demo",
   "glomeruli": [
    {
     "name": "DM1",

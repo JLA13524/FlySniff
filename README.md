@@ -36,10 +36,13 @@ The verdict blends two routes, like the real fly:
 ## Run it
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt   # fitdecode is only needed for --fit
 
 # offline, synthetic circuit + fake triathlon fortnight
 python -m flysniff --demo
+
+# .fit / .fit.gz files or whole folders (watch exports, or export/activities from Strava)
+python -m flysniff --fit ~/Downloads/export/activities
 
 # your Strava bulk export (Settings › My Account › Download your data)
 export NEUPRINT_TOKEN=...      # neuprint.janelia.org › Account › Auth token
@@ -55,7 +58,20 @@ it to `circuit.npz`. The dataset is auto-detected (anything named `male-cns*`);
 override it with `--dataset`. Use `--demo-circuit` to skip neuPrint and use real
 activities with the synthetic circuit.
 
-Then open the **Fly Sniff** page and drop `results.json` onto it.
+Then bake it into a page with `python ui/build.py results.json my-fly.html`, or drop
+`results.json` onto the published **Fly Sniff** page.
+
+### Uploading .fit files on the page
+
+The page can also smell `.fit` / `.fit.gz` files on its own: **Upload .fit files** (or drag
+them in). `ui/fitfly.js` decodes them in the browser and runs the same feature and circuit
+maths as the Python (a parity check agrees to ~0.001), using the circuit `build.py` baked
+into the page. Files never leave the browser. Differences from the CLI: no kudos learning,
+and while you have fewer than six files of your own they're z-scored against the demo
+sessions so there's something to compare with.
+
+FIT stream metrics: Pa:HR decoupling from moving samples (first vs second half), climbing
+from a smoothed altitude trace, and speed variability (intervals spike it).
 
 ## Notes
 

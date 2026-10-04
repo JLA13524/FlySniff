@@ -92,7 +92,8 @@ class Fly:
             self.kc_mbon *= np.clip(1 - dep, 0.05, 1)
 
     # --- whole thing -----------------------------------------------------
-    def sniff(self, acts: pd.DataFrame, f: pd.DataFrame, train_on_kudos: bool = True) -> dict:
+    def sniff(self, acts: pd.DataFrame, f: pd.DataFrame, train_on_kudos: bool = True,
+              raw: pd.DataFrame | None = None) -> dict:
         drive = glom_drive(f)
         kc = self.kc(drive)
         learned = False
@@ -122,6 +123,8 @@ class Fly:
                 "moving_min": _r(a.moving_s / 60),
                 "elev_m": _r(a.elev_m), "avg_hr": _r(a.avg_hr), "kudos": _r(a.kudos),
                 "features": {k: round(float(f.iloc[i][k]), 3) for k in FEATURES},
+                "raw": {} if raw is None else {k: (v if isinstance(v, str) else _r(v, 4))
+                                               for k, v in raw.iloc[i].items()},
                 "glomeruli": {g: round(float(drive[i, j]), 3) for j, g in enumerate(GLOMERULI)},
                 "kc_active": int((kc[i] > 0).sum()),
                 "kc_pattern": _kc_sample(kc[i]),

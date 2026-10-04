@@ -46,6 +46,7 @@ def load_csv(path: str) -> pd.DataFrame:
         "max_hr": _col(raw, "Max Heart Rate"),
         "cadence": _col(raw, "Average Cadence"),
         "kudos": np.nan,
+        "speed_cv": np.nan,
     })
     # CSV distance is km for the first column; derive speed if missing.
     km = out.distance_m < 1000
@@ -81,7 +82,7 @@ def load_api(token: str, n: int = 60, streams: bool = False) -> pd.DataFrame:
             "speed_ms": a.get("average_speed"), "distance_m": a.get("distance"),
             "elev_m": a.get("total_elevation_gain"), "avg_hr": a.get("average_heartrate"),
             "max_hr": a.get("max_heartrate"), "cadence": a.get("average_cadence"),
-            "kudos": a.get("kudos_count"), "drift_pct": drift,
+            "kudos": a.get("kudos_count"), "drift_pct": drift, "speed_cv": np.nan,
         })
     return pd.DataFrame(rows)
 
@@ -142,6 +143,7 @@ def demo_activities(seed: int = 3) -> pd.DataFrame:
             "moving_s": moving, "speed_ms": speed, "distance_m": km * 1000, "elev_m": elev,
             "avg_hr": hr, "max_hr": mx, "cadence": cad or np.nan,
             "kudos": int(rng.integers(2, 25)), "drift_pct": drift,
+            "speed_cv": 0.22 if ("interval" in name.lower() or "repeats" in name.lower()) else 0.06,
         })
     return pd.DataFrame(rows)
 
@@ -151,24 +153,39 @@ def _z(x: pd.Series) -> pd.Series:
     return (x - x.mean()) / sd if sd and sd > 0 else x * 0
 
 
-def features(df: pd.DataFrame) -> pd.DataFrame:
-    """Per-activity features, each roughly z-scored *within sport* so a swim
-    isn't judged on running pace. Missing data -> 0 (no smell)."""
-    df = df.copy()
-    hrmax = np.nanmax(df.max_hr.to_numpy(float)) if df.max_hr.notna().any() else 190
-    intensity = df.avg_hr / hrmax
-    drift = df.drift_pct.copy()
-    proxy = (df.max_hr - df.avg_hr) / df.avg_hr * 100  # crude stand-in when no streams
-    drift = drift.fillna(proxy - proxy.mean() + 3)
+def raw_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    """The per-activity numbers the features are built from. Written into
+    results.json so the web page can re-score new uploads against them."""
+    r = pd.DataFrame(index=df.index)
+    r["type"] = df.type.fillna("").astype(str)
+    for c in ["speed_ms", "avg_hr", "max_hr", "cadence", "drift_pct"]:
+        r[c] = pd.to_numeric(df[c], errors="coerce")
+    r["climb"] = df.elev_m / (df.distance_m / 1000).clip(lower=1)   # m per km
+    r["named"] = df.name.fillna("").str.contains(INTERVAL_WORDS).astype(float)
+    r["speed_cv"] = pd.to_numeric(df.get("speed_cv", np.nan), errors="coerce")
+    return r
 
-    f = pd.DataFrame(index=df.index)
-    f["speed"] = df.groupby("type").speed_ms.transform(_z)
+
+def features(df: pd.DataFrame) -> pd.DataFrame:
+    return features_from_raw(raw_metrics(df))
+
+
+def features_from_raw(r: pd.DataFrame) -> pd.DataFrame:
+    """Each feature is z-scored across the batch (speed and cadence *within sport*,
+    so a swim isn't judged on running pace). Missing data -> 0 (no smell).
+    ui/template.html mirrors this function line for line – keep them in sync."""
+    hrmax = np.nanmax(r.max_hr.to_numpy(float)) if r.max_hr.notna().any() else 190
+    intensity = r.avg_hr / hrmax
+    proxy = (r.max_hr - r.avg_hr) / r.avg_hr * 100  # crude stand-in when no streams
+    drift = r.drift_pct.fillna(proxy - proxy.mean() + 3)
+
+    f = pd.DataFrame(index=r.index)
+    f["speed"] = r.groupby("type").speed_ms.transform(_z)
     f["easy"] = -_z(intensity)
-    f["cadence"] = df.groupby("type").cadence.transform(_z)
+    f["cadence"] = r.groupby("type").cadence.transform(_z)
     f["hr_drift"] = _z(drift)
-    climb = df.elev_m / (df.distance_m / 1000).clip(lower=1)  # m per km
-    f["climb"] = _z(climb)
-    named = df.name.fillna("").str.contains(INTERVAL_WORDS).astype(float)
-    spiky = _z((df.max_hr - df.avg_hr).astype(float))
-    f["intervalness"] = 1.5 * named + 0.3 * spiky
+    f["climb"] = _z(r.climb)
+    spiky = _z((r.max_hr - r.avg_hr).astype(float)).fillna(0)
+    cv = _z(r.speed_cv).fillna(0)
+    f["intervalness"] = 1.5 * r.named + 0.3 * spiky + 0.6 * cv
     return f.fillna(0.0).clip(-3, 3)
