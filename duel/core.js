@@ -1,25 +1,32 @@
-// Fly Duel core: two flies with glowing blades, a tiny neural-network policy each (shared
+// Fly Duel core: two flying flies with glowing blades, a tiny neural-network policy each (shared
 // weights, self-play), trained with PPO. Plain JS so it runs in Node and in the browser.
 (function (root) {
   // ---------------- arena ----------------
-  const A = { R: 6, bodyR: 0.45, blade: 1.7, dt: 0.05, maxSteps: 600, hitsToWin: 3,
-              maxV: 2.6, maxTurn: 3.2, swingAcc: 60, swingDamp: 6, alphaMax: 1.9 };
+  // Flies walk or fly (height 0..zMax), turn, swing their blade sideways (a) and tilt it up or
+  // down (e), and can dash sideways with a cooldown. Hits and parries are checked in 3D.
+  const A = { R: 6, zMax: 3, bodyR: 0.45, blade: 1.7, dt: 0.05, maxSteps: 600, hitsToWin: 3,
+              maxV: 2.6, maxTurn: 3.2, swingAcc: 60, swingDamp: 6, alphaMax: 1.9, pitchMax: 0.9,
+              climb: 7, dashV: 6, dashCool: 20, OBS: 24, ACT: 6 };
 
-  function makeFly(x, y, h) { return { x, y, h, v: 0, a: 0, w: 0, hits: 0, cool: 0, ccool: 0 }; }
+  function makeFly(x, y, h) { return { x, y, z: 0, h, v: 0, vz: 0, a: 0, w: 0, e: 0, er: 0, dx: 0, dy: 0, dash: 0, hits: 0, cool: 0, ccool: 0, danger: null, dodges: 0 }; }
+  const body = f => [f.x, f.y, f.z + 0.45];
   function bladeSeg(f) {
-    const px = f.x + Math.cos(f.h) * A.bodyR * 0.9, py = f.y + Math.sin(f.h) * A.bodyR * 0.9, ang = f.h + f.a;
-    return [px, py, px + Math.cos(ang) * A.blade, py + Math.sin(ang) * A.blade];
+    const [cx, cy, cz] = body(f), px = cx + Math.cos(f.h) * A.bodyR * 0.9, py = cy + Math.sin(f.h) * A.bodyR * 0.9, ang = f.h + f.a, ce = Math.cos(f.e);
+    return [px, py, cz, px + ce * Math.cos(ang) * A.blade, py + ce * Math.sin(ang) * A.blade, cz + Math.sin(f.e) * A.blade];
   }
-  function segSegDist(a, b) {   // min distance between two segments (2D)
-    const d = (p, s) => { const [x1, y1, x2, y2] = s, dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy || 1e-9;
-      const t = Math.max(0, Math.min(1, ((p[0] - x1) * dx + (p[1] - y1) * dy) / L)); return Math.hypot(p[0] - x1 - t * dx, p[1] - y1 - t * dy); };
-    const cross = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
-    const A1 = [a[0], a[1]], A2 = [a[2], a[3]], B1 = [b[0], b[1]], B2 = [b[2], b[3]];
-    if (cross(A1, A2, B1) * cross(A1, A2, B2) < 0 && cross(B1, B2, A1) * cross(B1, B2, A2) < 0) return 0;
-    return Math.min(d(A1, b), d(A2, b), d(B1, a), d(B2, a));
+  function pointSegDist(p, s) {
+    const d = [s[3] - s[0], s[4] - s[1], s[5] - s[2]], L = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] || 1e-9;
+    const t = Math.max(0, Math.min(1, ((p[0] - s[0]) * d[0] + (p[1] - s[1]) * d[1] + (p[2] - s[2]) * d[2]) / L));
+    return Math.hypot(p[0] - s[0] - t * d[0], p[1] - s[1] - t * d[1], p[2] - s[2] - t * d[2]);
   }
-  function pointSegDist(px, py, s) { const [x1, y1, x2, y2] = s, dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
-    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / L)); return Math.hypot(px - x1 - t * dx, py - y1 - t * dy); }
+  function segSegDist(P, Q) {    // closest distance between two 3D segments
+    const u = [P[3] - P[0], P[4] - P[1], P[5] - P[2]], v = [Q[3] - Q[0], Q[4] - Q[1], Q[5] - Q[2]], w = [P[0] - Q[0], P[1] - Q[1], P[2] - Q[2]];
+    const dot = (x, y) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2];
+    const a = dot(u, u), b = dot(u, v), c = dot(v, v), d = dot(u, w), e = dot(v, w), D = a * c - b * b;
+    let sc = D < 1e-9 ? 0 : (b * e - c * d) / D; sc = Math.max(0, Math.min(1, sc));
+    let tc = (b * sc + e) / c; if (tc < 0) { tc = 0; sc = Math.max(0, Math.min(1, -d / a)); } else if (tc > 1) { tc = 1; sc = Math.max(0, Math.min(1, (b - d) / a)); }
+    return Math.hypot(w[0] + sc * u[0] - tc * v[0], w[1] + sc * u[1] - tc * v[1], w[2] + sc * u[2] - tc * v[2]);
+  }
 
   function makeEnv(rng) {
     const E = { f: [null, null], t: 0, events: [] };
@@ -30,50 +37,74 @@
       E.t = 0; return [obs(0), obs(1)];
     };
     const rot = (x, y, h) => [Math.cos(-h) * x - Math.sin(-h) * y, Math.sin(-h) * x + Math.cos(-h) * y];
-    function obs(i) {            // egocentric view of the duel, ~16 numbers
+    function obs(i) {            // egocentric view of the duel: 24 numbers
       const me = E.f[i], op = E.f[1 - i];
-      const [rx, ry] = rot(op.x - me.x, op.y - me.y, me.h), dist = Math.hypot(rx, ry);
-      const ob = bladeSeg(op), [tx, ty] = rot(ob[2] - me.x, ob[3] - me.y, me.h);
-      const [vx, vy] = rot(Math.cos(op.h) * op.v, Math.sin(op.h) * op.v, me.h);
+      const [rx, ry] = rot(op.x - me.x, op.y - me.y, me.h), rz = op.z - me.z, dist = Math.hypot(rx, ry, rz);
+      const ob = bladeSeg(op), [tx, ty] = rot(ob[3] - me.x, ob[4] - me.y, me.h), tz = ob[5] - (me.z + 0.45);
+      const [vx, vy] = rot(Math.cos(op.h) * op.v + op.dx, Math.sin(op.h) * op.v + op.dy, me.h);
       const wallD = A.R - Math.hypot(me.x, me.y), [wx, wy] = rot(-me.x, -me.y, me.h);
-      return [rx / 4, ry / 4, dist / 4, Math.cos(op.h - me.h), Math.sin(op.h - me.h), me.a / A.alphaMax, me.w / 8, me.v / A.maxV,
-        op.a / A.alphaMax, op.w / 8, tx / 4, ty / 4, vx / A.maxV, vy / A.maxV, wallD / A.R, Math.atan2(wy, wx) / Math.PI];
+      return [rx / 4, ry / 4, rz / 3, dist / 4, Math.cos(op.h - me.h), Math.sin(op.h - me.h),
+        me.a / A.alphaMax, me.w / 8, me.e / A.pitchMax, me.v / A.maxV, me.z / A.zMax, me.vz / 3, me.dash / A.dashCool,
+        op.a / A.alphaMax, op.w / 8, op.e / A.pitchMax, tx / 4, ty / 4, tz / 3, vx / A.maxV, vy / A.maxV, op.vz / 3,
+        wallD / A.R, Math.atan2(wy, wx) / Math.PI];
     }
-    // actions per fly: [forward, turn, swing], each roughly in [-1, 1]
+    // actions per fly: [forward, turn, swing, climb, blade tilt, dash (|x| > 0.6: left if +, right if -)]
     E.step = acts => {
       E.events = []; const rew = [0, 0];
       for (let i = 0; i < 2; i++) {
         const f = E.f[i], a = acts[i].map(v => Math.max(-1, Math.min(1, v)));
-        f.v += (a[0] * A.maxV - f.v) * 4 * A.dt; f.h += a[1] * A.maxTurn * A.dt;
+        const vmax = f.z > 0.1 ? A.maxV * 1.25 : A.maxV * 0.45;     // flies are much quicker in the air than on foot
+        f.v += (a[0] * vmax - f.v) * 4 * A.dt; f.h += a[1] * A.maxTurn * A.dt;
         f.w += (a[2] * A.swingAcc - A.swingDamp * f.w) * A.dt; f.a += f.w * A.dt;
         if (Math.abs(f.a) > A.alphaMax) { f.a = Math.sign(f.a) * A.alphaMax; f.w *= -0.3; }
-        f.x += Math.cos(f.h) * f.v * A.dt; f.y += Math.sin(f.h) * f.v * A.dt;
-        const r = Math.hypot(f.x, f.y); if (r > A.R - A.bodyR) { f.x *= (A.R - A.bodyR) / r; f.y *= (A.R - A.bodyR) / r; f.v *= 0.3; rew[i] -= 0.01; }
+        f.vz += (a[3] * A.climb - 3 * f.vz) * A.dt; f.z += f.vz * A.dt;
+        if (f.z < 0) { f.z = 0; f.vz = Math.max(0, f.vz); } if (f.z > A.zMax) { f.z = A.zMax; f.vz = Math.min(0, f.vz); }
+        f.er = a[4] * 4; f.e = Math.max(-A.pitchMax, Math.min(A.pitchMax, f.e + f.er * A.dt));
+        if (f.dash > 0) f.dash--;
+        if (Math.abs(a[5]) > 0.6 && f.dash === 0) {
+          const side = Math.sign(a[5]); f.dx = -Math.sin(f.h) * side * A.dashV; f.dy = Math.cos(f.h) * side * A.dashV; f.dash = A.dashCool;
+          E.events.push({ type: 'dash', by: i });
+        }
+        f.x += (Math.cos(f.h) * f.v + f.dx) * A.dt; f.y += (Math.sin(f.h) * f.v + f.dy) * A.dt;
+        f.dx *= 0.82; f.dy *= 0.82;
+        const r = Math.hypot(f.x, f.y); if (r > A.R - A.bodyR) { f.x *= (A.R - A.bodyR) / r; f.y *= (A.R - A.bodyR) / r; f.v *= 0.3; f.dx = f.dy = 0; rew[i] -= 0.01; }
         if (f.cool > 0) f.cool--; if (f.ccool > 0) f.ccool--;
       }
       // bodies can't overlap
-      const [f0, f1] = E.f, dx = f1.x - f0.x, dy = f1.y - f0.y, dd = Math.hypot(dx, dy) || 1e-6, minD = 2 * A.bodyR;
-      if (dd < minD) { const push = (minD - dd) / 2; f0.x -= dx / dd * push; f0.y -= dy / dd * push; f1.x += dx / dd * push; f1.y += dy / dd * push; }
-      const s0 = bladeSeg(f0), s1 = bladeSeg(f1);
-      // blade meets blade: a parry. Both blades bounce.
-      if (segSegDist(s0, s1) < 0.08 && (Math.abs(f0.w) + Math.abs(f1.w) > 2) && f0.ccool === 0 && f1.ccool === 0) {
-        const cx = (s0[2] + s1[2] + s0[0] + s1[0]) / 4, cy = (s0[3] + s1[3] + s0[1] + s1[1]) / 4;
+      const [f0, f1] = E.f, b0 = body(f0), b1 = body(f1), dv = [b1[0] - b0[0], b1[1] - b0[1], b1[2] - b0[2]], dd = Math.hypot(...dv) || 1e-6, minD = 2 * A.bodyR;
+      if (dd < minD) { const p = (minD - dd) / 2 / dd; f0.x -= dv[0] * p; f0.y -= dv[1] * p; f1.x += dv[0] * p; f1.y += dv[1] * p; }
+      const s0 = bladeSeg(f0), s1 = bladeSeg(f1), moving = f => Math.abs(f.w) > 1.5 || Math.abs(f.er) > 2.5;
+      let hitThisStep = [false, false];
+      if (segSegDist(s0, s1) < 0.1 && (Math.abs(f0.w) + Math.abs(f1.w) + Math.abs(f0.er) + Math.abs(f1.er) > 2) && f0.ccool === 0 && f1.ccool === 0) {
+        const c = [0, 1, 2].map(k => (s0[k] + s0[k + 3] + s1[k] + s1[k + 3]) / 4);
         f0.w *= -0.6; f1.w *= -0.6; f0.cool = Math.max(f0.cool, 3); f1.cool = Math.max(f1.cool, 3); f0.ccool = f1.ccool = 6;
-        E.events.push({ type: 'clash', x: cx, y: cy });   // a parry is its own reward: it stops the hit
+        E.events.push({ type: 'clash', x: c[0], y: c[1], z: c[2] });   // a parry is its own reward: it stops the hit
       } else {
-        for (let i = 0; i < 2; i++) {      // blade i touches fly 1-i's body: a hit, if it was swinging
-          const s = i ? s1 : s0, tgt = E.f[1 - i], att = E.f[i];
-          if (att.cool === 0 && pointSegDist(tgt.x, tgt.y, s) < A.bodyR && Math.abs(att.w) > 1.5) {
-            att.hits++; att.cool = 12; rew[i] += 1; rew[1 - i] -= 1;
-            tgt.v = -1.5; tgt.x -= Math.cos(tgt.h) * 0.3; tgt.y -= Math.sin(tgt.h) * 0.3;
-            E.events.push({ type: 'hit', by: i, x: tgt.x, y: tgt.y });
+        for (let i = 0; i < 2; i++) {      // blade i touches fly 1-i's body while moving: a hit
+          const s = i ? s1 : s0, tgt = E.f[1 - i], att = E.f[i], tb = body(tgt);
+          if (att.cool === 0 && moving(att) && pointSegDist(tb, s) < A.bodyR) {
+            att.hits++; att.cool = 12; rew[i] += 1; rew[1 - i] -= 1; hitThisStep[1 - i] = true; tgt.danger = null;
+            tgt.v = -1.5; tgt.x -= Math.cos(tgt.h) * 0.3; tgt.y -= Math.sin(tgt.h) * 0.3; tgt.vz -= 1;
+            E.events.push({ type: 'hit', by: i, x: tb[0], y: tb[1], z: tb[2] });
           }
+        }
+      }
+      // dodges: an attacking blade comes within reach and leaves again without landing, while
+      // the target got out of the way (changed height, dashed or backed off)
+      for (let i = 0; i < 2; i++) {
+        const me = E.f[i], op = E.f[1 - i], near = pointSegDist(body(me), i ? s0 : s1) < 0.9 && moving(op);
+        if (near && !me.danger && !hitThisStep[i]) me.danger = { x: me.x, y: me.y, z: me.z, t: E.t };
+        else if (!near && me.danger) {
+          const moved = Math.hypot(me.x - me.danger.x, me.y - me.danger.y) > 0.5 || Math.abs(me.z - me.danger.z) > 0.35;
+          // zero-sum: the dodger gains what the swinger loses, so the pair can't farm dodges together
+          if (moved && E.t - me.danger.t <= 20) { me.dodges++; rew[i] += 0.15; rew[1 - i] -= 0.15; E.events.push({ type: 'dodge', by: i, x: me.x, y: me.y, z: me.z + 0.45 }); }
+          me.danger = null;
         }
       }
       // small nudges so early learning has something to climb: face the opponent and close in
       for (let i = 0; i < 2; i++) {
         const me = E.f[i], op = E.f[1 - i], b = Math.atan2(op.y - me.y, op.x - me.x) - me.h;
-        rew[i] += 0.004 * Math.cos(b) - 0.002 * Math.min(4, Math.hypot(op.x - me.x, op.y - me.y));
+        rew[i] += 0.004 * Math.cos(b) - 0.002 * Math.min(4, Math.hypot(op.x - me.x, op.y - me.y, op.z - me.z));
       }
       E.t++;
       const done = E.t >= A.maxSteps || f0.hits >= A.hitsToWin || f1.hits >= A.hitsToWin;
@@ -120,7 +151,7 @@
   }
 
   // ---------------- policy ----------------
-  const OBS = 16, ACT = 3, H = 64;
+  const OBS = A.OBS, ACT = A.ACT, H = 64;
   function makeAgent(rng) {
     return { pi: makeMLP([OBS, H, H, ACT], rng, 0.01), vf: makeMLP([OBS, H, H, 1], rng, 1), logStd: Float64Array.from({ length: ACT }, () => -0.5) };
   }
@@ -208,6 +239,6 @@
   const unpack = p => ({ pi: p.pi.map(l => ({ W: Float64Array.from(l.W), b: Float64Array.from(l.b), n: l.n, m: l.m })), logStd: Float64Array.from(p.logStd) });
   function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-  const api = { _backward: backward, _zeros: zeros, A, makeEnv, bladeSeg, makeAgent, act, forward, makePPO, pack, unpack, mulberry32 };
+  const api = { _backward: backward, _zeros: zeros, A, makeEnv, body, bladeSeg, makeAgent, act, forward, makePPO, pack, unpack, mulberry32 };
   if (typeof module !== 'undefined') module.exports = api; else root.FlyDuel = api;
 })(this);

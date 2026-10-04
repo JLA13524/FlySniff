@@ -30,7 +30,7 @@ body { margin: 0; font: 14px/1.45 var(--body); }
 .pips { display: flex; gap: 5px; }
 .pips i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .9; }
 .pips i.on { background: currentColor; box-shadow: 0 0 10px currentColor; }
-.clock { font: 500 15px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.clock { font: 500 15px/1 var(--mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .title { position: absolute; left: 16px; bottom: 14px; z-index: 3; font: 900 34px/0.9 var(--display); letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 2px 20px #000; pointer-events: none; }
 .title span { display: block; font: 500 11px/1.4 var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); margin-top: 6px; }
 .banner { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; }
@@ -50,6 +50,15 @@ button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-
 .seg { display: flex; } .seg button { border-radius: 0; margin-left: -1px; font-family: var(--mono); }
 .seg button:first-child { border-radius: 8px 0 0 8px; margin: 0; } .seg button:last-child { border-radius: 0 8px 8px 0; }
 
+.brains { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .brains { grid-template-columns: minmax(0, 1fr); } }
+.brain { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+.brain header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brain h2 { margin: 0; font: 900 20px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.brain header span { font: 500 11px/1 var(--mono); color: var(--muted); }
+.brain canvas { width: 100%; height: 250px; display: block; }
+.callouts { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.callouts span { position: absolute; left: 0; top: 0; font: 900 22px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; text-shadow: 0 0 14px currentColor, 0 2px 8px #000; transition: opacity .6s, transform .1s linear; white-space: nowrap; }
 .lower { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 900px) { .lower { grid-template-columns: minmax(0, 1fr); } }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
@@ -65,11 +74,12 @@ button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-
   <div class="arena" id="arena">
     <canvas id="cv" aria-label="Two virtual flies duelling with glowing blades"></canvas>
     <div class="bug" aria-live="polite">
-      <div class="side" style="color:var(--cyan)"><span>Cyan</span><span class="pips" id="pipsL"></span><small id="genL"></small></div>
+      <div class="side" style="color:var(--cyan)"><span>Cyan</span><span class="pips" id="pipsL"></span><small id="genL"></small><small id="dodL"></small></div>
       <div class="clock" id="clock">0:00</div>
-      <div class="side r" style="color:var(--crimson)"><span>Crimson</span><span class="pips" id="pipsR"></span><small id="genR"></small></div>
+      <div class="side r" style="color:var(--crimson)"><span>Crimson</span><span class="pips" id="pipsR"></span><small id="genR"></small><small id="dodR"></small></div>
     </div>
-    <div class="title">Fly Duel<span>two virtual flies · one learned policy · trained by trial and error</span></div>
+    <div class="title">Fly Duel<span>two flying flies · learned by trial and error · dodging included</span></div>
+    <div class="callouts" id="callouts"></div>
     <div class="banner" id="banner" hidden><div id="bannerText"></div></div>
     <button class="sound" id="sound" aria-pressed="false">Sound off</button>
   </div>
@@ -84,16 +94,24 @@ button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-
     <div class="grp"><label class="lab" for="selR">Crimson brain</label><select id="selR"></select></div>
   </div>
 
+  <div class="brains">
+    <section class="brain"><header><h2 style="color:var(--cyan)">Cyan's brain</h2><span id="bstatL">live</span></header>
+      <canvas id="brainL" aria-label="Cyan fly's neural network: senses on the left, two hidden layers, actions on the right, lit by live activity"></canvas></section>
+    <section class="brain"><header><h2 style="color:var(--crimson)">Crimson's brain</h2><span id="bstatR">live</span></header>
+      <canvas id="brainR" aria-label="Crimson fly's neural network, lit by live activity"></canvas></section>
+  </div>
+
   <div class="lower">
     <div class="card">
       <h2>How it learned</h2>
       <canvas id="curve" aria-label="Training curve: reward per duel and hits per minute against training steps"></canvas>
-      <p>Each dot on the axis is a saved brain you can pick above. Early on they wander and wave their blades at nothing. Later they close in, swing on purpose and start blocking each other.</p>
+      <p>Each dot on the axis is a saved brain you can pick above. Early on they drift about waving at nothing; then they learn to close in, swing on purpose and block. The steps in the curve are rule changes: around 0.4M steps both flies learned to hover at the ceiling trading near-misses to farm dodge points without ever hitting, so dodges became zero-sum (the swinger loses what the dodger gains); later they gave up flying for ground fights, so walking was made slow and flying fast, as for a real fly.</p>
     </div>
     <div class="card">
       <h2>What's going on</h2>
-      <p><b>Same idea as the viral clip:</b> virtual flies trained with PPO, a standard trial-and-error learning algorithm, by fighting copies of themselves. No connectome is involved; the controller is a small neural network (16 inputs, two layers of 64, 3 outputs: walk, turn, swing).</p>
-      <p><b>Simpler than the clip:</b> the fight runs in 2D on the arena floor with a simplified fly body, and was trained right here in a few minutes of CPU.</p>
+      <p><b>Same idea as the viral clip:</b> virtual flies trained with PPO, a standard trial-and-error learning algorithm, by fighting copies of themselves. No connectome is involved; each fly's "brain" above is a small neural network (24 senses, two layers of 64, 6 actions).</p>
+      <p><b>They can fly.</b> Each fly controls height, blade swing and tilt, and a sideways dash with a one-second cooldown. A hit is +1 and being hit is −1; getting out of the way of a swing that would have landed earns a small bonus, so dodging is learned too.</p>
+      <p><b>Simpler than the clip:</b> simplified fly bodies and physics, trained right here in about half an hour of CPU.</p>
       <div class="kv" id="stats"></div>
     </div>
   </div>
@@ -120,25 +138,30 @@ for (const sel of [$('selL'), $('selR')]) sel.innerHTML = brains.map((b, i) => `
 $('selL').value = $('selR').value = brains.length - 1;
 
 // ---------------- duel state ----------------
+const LIVE = [null, null];   // last forward pass per fly, for the brain view
 const env = D.makeEnv(rng), S = { paused: false, speed: 1, slowmo: true, acc: 0, timeScale: 1, slowUntil: 0, prev: null, over: false, sparks: [], flash: 0 };
 let obs;
 function newBout() { obs = env.reset(); S.prev = snapshot(); S.over = false; $('banner').hidden = true; pips(); }
-const snapshot = () => env.f.map(f => ({ x: f.x, y: f.y, h: f.h, a: f.a, w: f.w, v: f.v }));
+const snapshot = () => env.f.map(f => ({ x: f.x, y: f.y, z: f.z, h: f.h, a: f.a, e: f.e, w: f.w, v: f.v }));
 function pips() {
   $('pipsL').innerHTML = [...Array(D.A.hitsToWin).keys()].map(k => `<i class="${k < env.f[0].hits ? 'on' : ''}"></i>`).join('');
   $('pipsR').innerHTML = [...Array(D.A.hitsToWin).keys()].map(k => `<i class="${k < env.f[1].hits ? 'on' : ''}"></i>`).join('');
   $('genL').textContent = label(brains[$('selL').value]); $('genR').textContent = label(brains[$('selR').value]);
+  $('dodL').textContent = env.f[0].dodges + ' dodges'; $('dodR').textContent = env.f[1].dodges + ' dodges';
 }
 function tick() {
   S.prev = snapshot();
   const acts = [0, 1].map(i => { const ag = brains[i ? $('selR').value : $('selL').value].agent, s = D.act(ag, obs[i], rng, false);
+    LIVE[i] = { acts: D.forward(ag.pi, obs[i]), agent: ag };
     const mu = s.mu, std = ag.logStd.map(Math.exp);   // sample with half the training noise: lively but deliberate
     return Array.from(mu, (m, k) => m + (s.a[k] - m) * 0.5); });
   const res = env.step(acts); obs = res.obs;
   for (const e of env.events) {
-    if (e.type === 'clash') { burst(e.x, e.y, '#ffffff', 26); sfx.clash(); }
-    if (e.type === 'hit') { burst(e.x, e.y, e.by ? COL.crimson : COL.cyan, 60); sfx.hit(); S.flash = 1; pips();
-      if (S.slowmo && !reduce) { S.slowUntil = performance.now() + 1100; S.focus = { x: e.x, y: e.y }; } }
+    if (e.type === 'clash') { burst(e.x, e.y, e.z, '#ffffff', 26); sfx.clash(); }
+    if (e.type === 'hit') { burst(e.x, e.y, e.z, e.by ? COL.crimson : COL.cyan, 60); sfx.hit(); S.flash = 1; pips();
+      if (S.slowmo && !reduce) { S.slowUntil = performance.now() + 1100; S.focus = { x: e.x, y: e.y, z: e.z }; } }
+    if (e.type === 'dodge') { callout('Dodge', e.by, e); pips(); }
+    if (e.type === 'dash') { const f = env.f[e.by]; burst(f.x, f.y, f.z + 0.3, '#9c97b8', 10); }
   }
   if (res.done) {
     S.over = true; const [a, b] = [env.f[0].hits, env.f[1].hits];
@@ -198,8 +221,11 @@ function makeFly3D(color) {
   const halo = new T3.Sprite(new T3.SpriteMaterial({ map: glowTex, color, transparent: true, opacity: 0.5, blending: T3.AdditiveBlending, depthWrite: false }));
   halo.scale.set(L * 1.4, 0.7, 1); halo.position.x = 0.24 + L / 2; pivot.add(halo);
   const light = new T3.PointLight(color, 1.4, 5); light.position.set(0.24 + L / 2, 0, 0); pivot.add(light);
+  pivot.rotation.order = 'YZX';
   scene.add(G);
-  return { G, pivot, wings, legs, glow, halo, light };
+  const shadow = new T3.Mesh(new T3.CircleGeometry(0.55, 24), new T3.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.5, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.01; scene.add(shadow);
+  return { G, pivot, wings, legs, glow, halo, light, shadow };
 }
 const F3 = [makeFly3D(COL.cyan), makeFly3D(COL.crimson)];
 
@@ -208,12 +234,12 @@ const NSP = 400, spPos = new Float32Array(NSP * 3), spCol = new Float32Array(NSP
 spG.setAttribute('position', new T3.BufferAttribute(spPos, 3)); spG.setAttribute('color', new T3.BufferAttribute(spCol, 3));
 scene.add(new T3.Points(spG, new T3.PointsMaterial({ size: 0.12, map: glowTex, vertexColors: true, transparent: true, blending: T3.AdditiveBlending, depthWrite: false })));
 const sparks = Array.from({ length: NSP }, () => ({ life: 0 }));
-function burst(x, y, color, n) {
+function burst(x, y, z, color, n) {
   if (reduce) n = Math.min(n, 8);
   const c = new T3.Color(color);
   for (let k = 0, i = 0; i < NSP && k < n; i++) if (sparks[i].life <= 0) {
     const a = rng() * Math.PI * 2, up = rng() * 3, sp = 2 + rng() * 4;
-    Object.assign(sparks[i], { x, y: 0.5, z: y, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, life: 0.5 + rng() * 0.5, c }); k++;
+    Object.assign(sparks[i], { x, y: z, z: y, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, life: 0.5 + rng() * 0.5, c }); k++;
   }
 }
 
@@ -226,20 +252,23 @@ function render(now, alpha, wdt) {
   const P = S.prev || snapshot();
   env.f.forEach((f, i) => {
     const p = P[i], x = p.x + (f.x - p.x) * alpha, y = p.y + (f.y - p.y) * alpha, h = lerpAng(p.h, f.h, alpha), a = p.a + (f.a - p.a) * alpha;
-    const o = F3[i]; o.G.position.set(x, 0, y); o.G.rotation.y = -h; o.pivot.rotation.y = -a;
-    const buzz = Math.sin(now * 0.09 + i) * 0.5; o.wings.forEach((w, k) => (w.rotation.y = (k ? -1 : 1) * (0.3 + buzz * 0.4)));
+    const z = p.z + (f.z - p.z) * alpha, e = p.e + (f.e - p.e) * alpha;
+    const o = F3[i]; o.G.position.set(x, z, y); o.G.rotation.y = -h; o.pivot.rotation.y = -a; o.pivot.rotation.z = e;
+    o.shadow.position.set(x, 0.01, y); o.shadow.scale.setScalar(1 + z * 0.35); o.shadow.material.opacity = 0.5 / (1 + z);
+    const flying = z > 0.05, buzz = Math.sin(now * (flying ? 0.6 : 0.09) + i) * 0.5;
+    o.wings.forEach((w, k) => (w.rotation.y = (k ? -1 : 1) * (flying ? 0.9 + buzz * 0.9 : 0.3 + buzz * 0.4)));
     o.legs.forEach(([l, k, s]) => (l.rotation.z = Math.sin(now * 0.02 * (0.3 + Math.abs(f.v)) + k * 2 + (s > 0 ? 0 : 1)) * 0.35 * Math.min(1, Math.abs(f.v))));
     const hum = 0.5 + 0.08 * Math.sin(now * 0.05 + i * 3) + Math.min(0.4, Math.abs(f.w) * 0.03);
     o.glow.material.opacity = hum; o.halo.material.opacity = hum * 0.8; o.light.intensity = 1 + hum;
   });
   // cinematic camera: slow orbit framing both flies; on a hit, swing in close
-  const [a, b] = env.f, mid = new T3.Vector3((a.x + b.x) / 2, 0.5, (a.y + b.y) / 2), sep = Math.hypot(a.x - b.x, a.y - b.y);
+  const [a, b] = env.f, mid = new T3.Vector3((a.x + b.x) / 2, 0.5 + (a.z + b.z) / 2, (a.y + b.y) / 2), sep = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
   const slow = now < S.slowUntil;
   if (!reduce) camAng += wdt * (slow ? 0.35 : 0.08);
-  const target = slow && S.focus ? new T3.Vector3(S.focus.x, 0.5, S.focus.y) : mid;
+  const target = slow && S.focus ? new T3.Vector3(S.focus.x, S.focus.z, S.focus.y) : mid;
   camFocus.lerp(target, 0.08);
   const dist = slow ? 3.2 : 5.5 + sep * 0.9, ht = slow ? 1.4 : 3.2 + sep * 0.25;
-  const want = new T3.Vector3(camFocus.x + Math.cos(camAng) * dist, ht, camFocus.z + Math.sin(camAng) * dist);
+  const want = new T3.Vector3(camFocus.x + Math.cos(camAng) * dist, ht + camFocus.y * 0.6, camFocus.z + Math.sin(camAng) * dist);
   cam.position.lerp(want, slow ? 0.12 : 0.04); cam.lookAt(camFocus);
   spot.target.position.copy(camFocus);
   // sparks
@@ -252,6 +281,18 @@ function render(now, alpha, wdt) {
   spG.attributes.position.needsUpdate = true; spG.attributes.color.needsUpdate = true;
   scene.background.setRGB(0.02 + S.flash * 0.18, 0.016 + S.flash * 0.15, 0.04 + S.flash * 0.2); S.flash = Math.max(0, S.flash - wdt * 3);
   R.render(scene, cam);
+  const r = cv.getBoundingClientRect(), tmp = new T3.Vector3();
+  for (const c of callouts) {
+    c.age += wdt; tmp.set(c.x, c.z + 0.9 + c.age * 0.8, c.y).project(cam);
+    c.el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * r.width}px, ${(-tmp.y * 0.5 + 0.5) * r.height}px) translate(-50%, -50%)`;
+    c.el.style.opacity = c.age > 0.9 ? 0 : 1;
+  }
+  while (callouts.length && callouts[0].age > 1.6) callouts.shift().el.remove();
+}
+const callouts = [];
+function callout(text, who, at) {
+  const el = document.createElement('span'); el.textContent = text; el.style.color = who ? COL.crimson : COL.cyan;
+  $('callouts').append(el); callouts.push({ el, x: at.x, y: at.y, z: at.z, age: 0 });
 }
 
 // ---------------- sound (synthesised, off until asked) ----------------
@@ -287,8 +328,54 @@ function frame(now) {
   }
   render(now, Math.min(1, S.acc / D.A.dt), wdt * (slow ? 0.35 : 1));
   sfx.swingLevel(Math.abs(env.f[0].w) + Math.abs(env.f[1].w));
+  if (now - (S.brainAt || 0) > 50) { S.brainAt = now; drawBrain(0); drawBrain(1); }
   $('clock').textContent = (env.t * D.A.dt).toFixed(1) + ' s';
   requestAnimationFrame(frame);
+}
+
+// ---------------- brains ----------------
+const SENSES = [['their position', 0, 4], ['their facing', 4, 6], ['my blade', 6, 9], ['my body', 9, 13], ['their blade', 13, 19], ['their motion', 19, 22], ['wall', 22, 24]];
+const OUTS = ['walk', 'turn', 'swing', 'climb', 'tilt', 'dash'];
+const edgeCache = new Map();
+function topEdges(agent) {            // strongest few incoming weights per neuron, drawn faintly
+  if (edgeCache.has(agent)) return edgeCache.get(agent);
+  const E = agent.pi.map(L => { const out = []; for (let j = 0; j < L.m; j++) { const idx = [...Array(L.n).keys()].sort((p, q) => Math.abs(L.W[j * L.n + q]) - Math.abs(L.W[j * L.n + p])).slice(0, 3); for (const i of idx) out.push([i, j, L.W[j * L.n + i]]); } return out; });
+  edgeCache.set(agent, E); return E;
+}
+function drawBrain(i) {
+  const c = $(i ? 'brainR' : 'brainL'), r = c.getBoundingClientRect(), d = devicePixelRatio || 1;
+  if (!r.width) return;
+  if (c.width !== Math.round(r.width * d)) { c.width = r.width * d; c.height = r.height * d; }
+  const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+  const W = r.width, H = r.height, L = LIVE[i]; g.clearRect(0, 0, W, H);
+  if (!L) return;
+  const team = new T3.Color(i ? COL.crimson : COL.cyan), tc = `${team.r * 255 | 0},${team.g * 255 | 0},${team.b * 255 | 0}`;
+  const cols = [96, W * 0.42, W * 0.66, W - 96], sizes = [24, 64, 64, 6];
+  const ys = sizes.map((n, k) => { const top = 20, bot = H - 6; return [...Array(n).keys()].map(j => top + (j + 0.5) * (bot - top) / n); });
+  const act = L.acts;
+  // edges, brightened by how much signal flows through them right now
+  topEdges(L.agent).forEach((E, k) => {
+    for (const [a, b, w] of E) {
+      const flow = Math.min(1, Math.abs(act[k][a] * w) * 1.5);
+      if (flow < 0.08) continue;
+      g.strokeStyle = w > 0 ? `rgba(${tc},${0.06 + flow * 0.5})` : `rgba(140,136,166,${0.05 + flow * 0.4})`;
+      g.lineWidth = 0.6 + flow; g.beginPath(); g.moveTo(cols[k], ys[k][a]); g.lineTo(cols[k + 1], ys[k + 1][b]); g.stroke();
+    }
+  });
+  // neurons
+  act.forEach((layer, k) => layer.forEach((v, j) => {
+    const mag = Math.min(1, Math.abs(k === 3 ? Math.tanh(v) : v)), rad = k === 0 || k === 3 ? 4 : 3;
+    g.fillStyle = v >= 0 ? `rgba(${tc},${0.15 + mag * 0.85})` : `rgba(236,233,246,${0.08 + mag * 0.55})`;
+    g.beginPath(); g.arc(cols[k], ys[k][j], rad + mag * 2, 0, 7); g.fill();
+  }));
+  g.font = '500 10px "IBM Plex Mono", monospace'; g.textBaseline = 'middle';
+  g.fillStyle = COL.muted; g.textAlign = 'right';
+  for (const [name, a, b] of SENSES) g.fillText(name, cols[0] - 10, (ys[0][a] + ys[0][b - 1]) / 2);
+  g.textAlign = 'left';
+  OUTS.forEach((name, j) => { const v = Math.tanh(act[3][j]); g.fillStyle = COL.text; g.fillText(name, cols[3] + 12, ys[3][j]);
+    g.fillStyle = `rgba(${tc},.9)`; const bx = cols[3] + 52, bw = 34; g.fillRect(bx + bw / 2, ys[3][j] - 3, v * bw / 2, 6); g.fillStyle = COL.line; g.fillRect(bx + bw / 2, ys[3][j] - 5, 1, 10); });
+  g.fillStyle = COL.muted; g.textAlign = 'center';
+  ['senses', 'layer 1', 'layer 2', 'actions'].forEach((t, k) => g.fillText(t, cols[k], 7));
 }
 
 // ---------------- learning curve ----------------
@@ -312,7 +399,7 @@ function drawCurve() {
 }
 const lastLog = CK.log[CK.log.length - 1];
 $('stats').innerHTML = `<span>training</span><span>${(lastLog.steps / 1e6).toFixed(2)}M steps · ${lastLog.iter} PPO updates</span>
-  <span>policy</span><span>16 → 64 → 64 → 3, tanh</span><span>opponent</span><span>itself (self-play)</span><span>bouts here</span><span>first to 5 hits, 30 s limit (trained on first to 3)</span>`;
+  <span>policy</span><span>24 → 64 → 64 → 6, tanh</span><span>opponent</span><span>itself (self-play)</span><span>bouts here</span><span>first to 5 hits, 30 s limit (trained on first to 3)</span>`;
 addEventListener('resize', drawCurve);
 
 // ---------------- controls ----------------
