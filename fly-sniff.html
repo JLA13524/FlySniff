@@ -1,0 +1,325 @@
+<title>Fly Sniff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a vertical "clip" (the fly in its arena, neurons underneath, caption overlaid)
+   beside a feed of activities you tap to waft at the fly. Single dark look: a fluorescence
+   imaging rig – ink-blue ground, cyan for neural activity, amber = approach, rose = avoid. */
+:root {
+  --ink: #0b0e1c;
+  --panel: #131833;
+  --line: #262d55;
+  --fg: #e7e9f7;
+  --muted: #8d93b8;
+  --gcamp: #5fe3ff;      /* neural activity */
+  --approach: #ffb547;
+  --avoid: #ff5c86;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--ink); color: var(--fg); }
+body { font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 20px 40px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 20px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font: 800 clamp(34px, 6vw, 56px)/0.9 var(--display); letter-spacing: -0.02em; margin: 0; }
+h1 span { color: var(--gcamp); }
+.sub { color: var(--muted); max-width: 52ch; margin: 6px 0 0; text-wrap: pretty; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { font: 500 12px/1 var(--mono); border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); }
+.chip b { color: var(--fg); font-weight: 500; }
+button, .btn { font: 600 13px/1 var(--body); color: var(--ink); background: var(--gcamp); border: 0; border-radius: 999px; padding: 10px 14px; cursor: pointer; }
+button.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+button:focus-visible, li:focus-visible, label.btn:focus-within { outline: 2px solid var(--gcamp); outline-offset: 2px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* the clip */
+.clip { position: relative; aspect-ratio: 9 / 16; max-width: 100%; width: 100%; border-radius: 22px; overflow: hidden; background: #070914; border: 1px solid var(--line); }
+.clip canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cap { position: absolute; left: 14px; right: 64px; top: 16px; font: 800 22px/1.15 var(--display); text-shadow: 0 2px 10px #000a; text-wrap: balance; min-height: 3.5em; }
+.cap .v { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 5px 8px; border-radius: 6px; margin-bottom: 8px; color: var(--ink); }
+.handle { position: absolute; left: 14px; right: 14px; bottom: 10px; font: 500 12px/1.3 var(--mono); color: var(--fg); opacity: .85; }
+.rail { position: absolute; right: 10px; top: 14px; display: grid; gap: 14px; justify-items: center; font: 500 11px/1 var(--mono); color: var(--fg); }
+.rail button { width: 40px; height: 40px; padding: 0; border-radius: 50%; background: #ffffff1c; color: var(--fg); font-size: 18px; display: grid; place-items: center; }
+.rail div { display: grid; gap: 4px; justify-items: center; }
+
+/* side */
+.side { display: grid; gap: 16px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+.card h2 { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 520px) { .duo { grid-template-columns: 1fr; } }
+.big { font: 800 22px/1.15 var(--display); text-wrap: balance; }
+.big small { display: block; font: 400 13px/1.4 var(--body); color: var(--muted); margin-top: 4px; }
+
+ul.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 420px; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 8px; border-radius: 10px; cursor: pointer; }
+.feed li:hover { background: #ffffff0a; }
+.feed li[aria-current="true"] { background: #5fe3ff17; }
+.feed .d { font: 500 11px/1.2 var(--mono); color: var(--muted); }
+.feed .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed .n small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 120px; }
+.week div { display: grid; grid-template-rows: 1fr 1fr auto; height: 100%; }
+.week .bar { border-radius: 4px; }
+.week .lab { font: 500 10px/1 var(--mono); color: var(--muted); text-align: center; padding-top: 6px; }
+.glom { display: grid; gap: 7px; }
+.glom div { display: grid; grid-template-columns: 38px minmax(0, 1fr) 40px; gap: 8px; align-items: center; font: 500 12px/1.2 var(--mono); }
+.glom .track { height: 8px; background: #ffffff10; border-radius: 4px; overflow: hidden; }
+.glom .track i { display: block; height: 100%; border-radius: 4px; transition: width .6s; }
+.glom .o { grid-column: 2 / 4; color: var(--muted); font: 400 11px/1.2 var(--body); margin-top: -4px; }
+
+.drop { position: fixed; inset: 0; background: #0b0e1cdd; display: grid; place-items: center; font: 800 32px var(--display); color: var(--gcamp); border: 3px dashed var(--gcamp); z-index: 9; }
+.err { color: var(--avoid); font-size: 13px; }
+footer { color: var(--muted); font-size: 12px; max-width: 75ch; }
+footer code { font-family: var(--mono); color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .glom .track i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fly <span>Sniff</span></h1>
+      <p class="sub">A fruit fly's olfactory circuit smells your training and decides whether to walk towards it or run away.</p>
+    </div>
+    <div class="tools">
+      <span class="chip" id="src">circuit <b>…</b></span>
+      <label class="btn" for="file">Load results.json<input id="file" type="file" accept=".json,application/json" hidden></label>
+    </div>
+  </header>
+  <p class="err" id="err" hidden></p>
+
+  <div class="main">
+    <div class="clip" id="clip">
+      <canvas id="cv"></canvas>
+      <div class="cap" id="cap"></div>
+      <div class="handle" id="handle"></div>
+      <div class="rail">
+        <div><button id="replay" title="Waft it again" aria-label="Replay">↻</button>replay</div>
+        <div><button id="next" title="Next activity" aria-label="Next activity">↓</button>next</div>
+        <div><span style="font-size:20px">♥</span><span id="kudos">–</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="duo">
+        <div class="card"><h2>Favourite smell</h2><div class="big" id="love"></div></div>
+        <div class="card"><h2>Nemesis</h2><div class="big" id="hate"></div></div>
+      </div>
+      <div class="card">
+        <h2>What it's smelling now</h2>
+        <div class="glom" id="glom"></div>
+      </div>
+      <div class="card">
+        <h2>Your sessions · tap to waft</h2>
+        <ul class="feed" id="feed"></ul>
+      </div>
+      <div class="card">
+        <h2>Mood by weekday</h2>
+        <div class="week" id="week"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Generated by <code>python -m flysniff</code>. Activity features drive six antennal-lobe glomeruli, real PN→Kenyon cell→MBON
+    synapse counts do the rest, and kudos act as dopamine. The page opens on the demo run (synthetic circuit, made-up training);
+    load your own <code>results.json</code> or drop it anywhere on the page. Not science.
+  </footer>
+</div>
+<div class="drop" id="drop" hidden>drop results.json</div>
+
+<script>
+const DEMO = {"activities":[{"id":"demo0","name":"Easy recovery jog","type":"Run","date":"2026-09-14T08:47:00","weekday":"Monday","distance_km":7.0,"moving_min":41.3,"elev_m":35.0,"avg_hr":132.0,"kudos":7.0,"features":{"speed":-1.156,"easy":0.977,"cadence":-1.151,"hr_drift":-0.322,"climb":-0.175,"intervalness":-0.298},"glomeruli":{"DM1":0.052,"DM4":0.795,"VM2":0.052,"V":0.224,"DA2":0.279,"DA1":0.232},"kc_active":100,"kc_pattern":[12,15,59,97,102,119,159,164,186,189,191,197,210,219,242,248,257,276,307,321,336,341,369,387,390,393],"mbon":{"MBON01":-1.64,"MBON03":-0.67,"MBON04":-1.2,"MBON05":0.38,"MBON07":-1.82,"MBON11":-1.22,"MBON12":-0.88,"MBON14":-1.71,"MBON15":-0.98,"MBON16":0.35,"MBON18":-1.17,"MBON19":-1.05},"innate":0.3,"learned":-0.559,"valence":-0.044,"verdict":"indifferent","caption":"the fly sniffed \u201cEasy recovery jog\u201d and felt nothing.","top_smell":"speed"},{"id":"demo1","name":"Tuesday track intervals 6x800","type":"Run","date":"2026-09-15T15:41:00","weekday":"Tuesday","distance_km":10.0,"moving_min":46.0,"elev_m":20.0,"avg_hr":158.0,"kudos":15.0,"features":{"speed":0.465,"easy":-0.885,"cadence":0.745,"hr_drift":0.476,"climb":-0.514,"intervalness":1.813},"glomeruli":{"DM1":0.582,"DM4":0.086,"VM2":0.709,"V":0.587,"DA2":0.164,"DA1":0.954},"kc_active":100,"kc_pattern":[18,20,21,32,75,83,183,191,197,225,236,245,257,276,317,319,342,347,369,377],"mbon":{"MBON01":-1.69,"MBON03":-1.54,"MBON04":-2.12,"MBON05":-1.02,"MBON07":-2.24,"MBON11":-0.61,"MBON12":-0.53,"MBON14":-0.83,"MBON15":-2.66,"MBON16":-1.15,"MBON18":-1.75,"MBON19":-1.12},"innate":-0.421,"learned":-0.129,"valence":-0.304,"verdict":"HATES","caption":"the fly hates your Tuesday intervals. it smells like a rival male.","top_smell":"intervalness"},{"id":"demo2","name":"Sweet spot turbo","type":"Ride","date":"2026-09-16T10:19:00","weekday":"Wednesday","distance_km":40.0,"moving_min":75.0,"elev_m":0.0,"avg_hr":148.0,"kudos":11.0,"features":{"speed":1.015,"easy":-0.169,"cadence":1.025,"hr_drift":-0.847,"climb":-0.741,"intervalness":1.405},"glomeruli":{"DM1":0.807,"DM4":0.281,"VM2":0.81,"V":0.092,"DA2":0.111,"DA1":0.901},"kc_active":100,"kc_pattern":[18,21,32,70,75,83,163,183,191,197,224,225,236,257,276,312,317,319,321,336,342,347,369,377],"mbon":{"MBON01":-2.02,"MBON03":-1.63,"MBON04":-1.69,"MBON05":-1.3,"MBON07":-2.11,"MBON11":-1.18,"MBON12":-1.56,"MBON14":-0.92,"MBON15":-2.58,"MBON16":-1.29,"MBON18":-1.97,"MBON19":-1.79},"innate":0.819,"learned":-0.513,"valence":0.286,"verdict":"LOVES","caption":"the fly loves \u201cSweet spot turbo\u201d. it smells like a PB.","top_smell":"speed"},{"id":"demo3","name":"Lunch swim","type":"Swim","date":"2026-09-17T09:38:00","weekday":"Thursday","distance_km":2.5,"moving_min":50.0,"elev_m":0.0,"avg_hr":128.0,"kudos":5.0,"features":{"speed":0.707,"easy":1.263,"cadence":0.0,"hr_drift":-1.177,"climb":-0.741,"intervalness":0.007},"glomeruli":{"DM1":0.693,"DM4":0.873,"VM2":0.354,"V":0.05,"DA2":0.111,"DA1":0.358},"kc_active":100,"kc_pattern":[18,97,119,163,183,191,194,196,197,224,230,236,242,257,276,312,317,321,336,351,369,377,393],"mbon":{"MBON01":-2.81,"MBON03":-2.05,"MBON04":-2.05,"MBON05":-1.35,"MBON07":-1.93,"MBON11":-2.22,"MBON12":-2.77,"MBON14":-1.5,"MBON15":-1.92,"MBON16":-1.15,"MBON18":-1.97,"MBON19":-2.37},"innate":0.97,"learned":-0.661,"valence":0.317,"verdict":"LOVES","caption":"the fly loves \u201cLunch swim\u201d. it smells like a lovely recovery jog.","top_smell":"easy"},{"id":"demo4","name":"Tempo run along the canal","type":"Run","date":"2026-09-18T07:19:00","weekday":"Friday","distance_km":12.0,"moving_min":57.6,"elev_m":40.0,"avg_hr":154.0,"kudos":4.0,"features":{"speed":0.159,"easy":-0.598,"cadence":0.203,"hr_drift":-0.934,"climb":-0.363,"intervalness":1.304},"glomeruli":{"DM1":0.43,"DM4":0.142,"VM2":0.452,"V":0.078,"DA2":0.21,"DA1":0.882},"kc_active":100,"kc_pattern":[18,20,21,32,75,83,153,183,191,197,225,257,272,276,305,317,319,336,341,342,347,377],"mbon":{"MBON01":-1.3,"MBON03":-1.2,"MBON04":-1.88,"MBON05":-0.28,"MBON07":-2.18,"MBON11":-0.7,"MBON12":-1.38,"MBON14":-0.81,"MBON15":-1.22,"MBON16":-0.58,"MBON18":-1.98,"MBON19":-0.95},"innate":-0.071,"learned":-0.383,"valence":-0.196,"verdict":"not a fan","caption":"the fly is not a fan of \u201cTempo run along the canal\u201d. it smells like a rival male.","top_smell":"intervalness"},{"id":"demo5","name":"Long hilly ride \u2013 Chilterns","type":"Ride","date":"2026-09-19T15:52:00","weekday":"Saturday","distance_km":105.0,"moving_min":233.3,"elev_m":1350.0,"avg_hr":141.0,"kudos":13.0,"features":{"speed":-1.24,"easy":0.332,"cadence":-1.317,"hr_drift":1.88,"climb":0.715,"intervalness":0.669},"glomeruli":{"DM1":0.044,"DM4":0.516,"VM2":0.038,"V":0.959,"DA2":0.696,"DA1":0.677},"kc_active":100,"kc_pattern":[18,20,21,35,75,83,97,119,159,164,177,186,191,197,248,257,276,290,307,335,341,347,369,370,387],"mbon":{"MBON01":0.11,"MBON03":0.48,"MBON04":0.21,"MBON05":0.89,"MBON07":-0.16,"MBON11":1.55,"MBON12":0.68,"MBON14":-0.1,"MBON15":1.19,"MBON16":1.83,"MBON18":-0.46,"MBON19":1.4},"innate":-0.988,"learned":0.551,"valence":-0.372,"verdict":"HATES","caption":"the fly hates \u201cLong hilly ride \u2013 Chilterns\u201d. it smells like panic (CO2).","top_smell":"hr_drift"},{"id":"demo6","name":"Long Sunday run","type":"Run","date":"2026-09-20T13:39:00","weekday":"Sunday","distance_km":21.0,"moving_min":111.3,"elev_m":160.0,"avg_hr":146.0,"kudos":15.0,"features":{"speed":-0.507,"easy":-0.026,"cadence":-0.609,"hr_drift":1.353,"climb":0.122,"intervalness":-0.145},"glomeruli":{"DM1":0.166,"DM4":0.343,"VM2":0.14,"V":0.892,"DA2":0.412,"DA1":0.291},"kc_active":100,"kc_pattern":[18,20,35,75,83,97,118,119,159,164,177,186,191,197,248,257,276,290,309,335,369,370,387],"mbon":{"MBON01":-1.97,"MBON03":-1.6,"MBON04":-1.38,"MBON05":0.87,"MBON07":-0.32,"MBON11":0.65,"MBON12":-1.02,"MBON14":-0.83,"MBON15":-0.85,"MBON16":0.27,"MBON18":-0.81,"MBON19":-0.32},"innate":-0.881,"learned":0.47,"valence":-0.341,"verdict":"HATES","caption":"the fly hates \u201cLong Sunday run\u201d. it smells like panic (CO2).","top_smell":"hr_drift"},{"id":"demo7","name":"Easy shakeout","type":"Run","date":"2026-09-21T14:34:00","weekday":"Monday","distance_km":6.0,"moving_min":36.0,"elev_m":20.0,"avg_hr":128.0,"kudos":23.0,"features":{"speed":-1.252,"easy":1.263,"cadence":-1.421,"hr_drift":-0.974,"climb":-0.363,"intervalness":-0.502},"glomeruli":{"DM1":0.043,"DM4":0.873,"VM2":0.031,"V":0.073,"DA2":0.21,"DA1":0.168},"kc_active":100,"kc_pattern":[12,15,59,97,102,119,122,159,189,191,196,197,210,212,219,242,257,276,307,321,336,369,387,390,393],"mbon":{"MBON01":-2.04,"MBON03":-0.79,"MBON04":-1.98,"MBON05":0.14,"MBON07":-1.98,"MBON11":-1.58,"MBON12":-1.28,"MBON14":-1.97,"MBON15":-1.48,"MBON16":-0.03,"MBON18":-1.21,"MBON19":-1.39},"innate":0.676,"learned":-0.602,"valence":0.165,"verdict":"into it","caption":"the fly is into \u201cEasy shakeout\u201d. it smells like a lovely recovery jog.","top_smell":"easy"},{"id":"demo8","name":"Tuesday VO2 intervals 5x1k","type":"Run","date":"2026-09-22T10:11:00","weekday":"Tuesday","distance_km":11.0,"moving_min":49.5,"elev_m":25.0,"avg_hr":161.0,"kudos":16.0,"features":{"speed":0.629,"easy":-1.1,"cadence":1.015,"hr_drift":0.652,"climb":-0.484,"intervalness":1.813},"glomeruli":{"DM1":0.659,"DM4":0.057,"VM2":0.807,"V":0.669,"DA2":0.173,"DA1":0.954},"kc_active":100,"kc_pattern":[18,20,21,32,75,83,183,191,197,225,236,245,257,276,317,319,342,347,369,377],"mbon":{"MBON01":-1.86,"MBON03":-1.54,"MBON04":-2.04,"MBON05":-1.09,"MBON07":-2.13,"MBON11":-0.55,"MBON12":-0.46,"MBON14":-0.79,"MBON15":-2.91,"MBON16":-1.28,"MBON18":-1.63,"MBON19":-1.16},"innate":-0.399,"learned":-0.08,"valence":-0.272,"verdict":"HATES","caption":"the fly hates your Tuesday intervals. it smells like a rival male.","top_smell":"intervalness"},{"id":"demo9","name":"Z2 endurance ride","type":"Ride","date":"2026-09-23T15:41:00","weekday":"Wednesday","distance_km":60.0,"moving_min":124.1,"elev_m":380.0,"avg_hr":132.0,"kudos":8.0,"features":{"speed":-0.338,"easy":0.977,"cadence":-0.146,"hr_drift":-0.55,"climb":-0.024,"intervalness":-0.196},"glomeruli":{"DM1":0.218,"DM4":0.795,"VM2":0.291,"V":0.154,"DA2":0.344,"DA1":0.27},"kc_active":100,"kc_pattern":[15,18,97,102,119,159,163,183,186,189,191,196,197,210,224,242,257,276,307,312,321,336,369,377,387,393],"mbon":{"MBON01":-1.6,"MBON03":-0.92,"MBON04":-1.45,"MBON05":-0.18,"MBON07":-1.31,"MBON11":-1.53,"MBON12":-1.12,"MBON14":-1.77,"MBON15":-1.12,"MBON16":-0.37,"MBON18":-1.5,"MBON19":-1.81},"innate":0.608,"learned":-0.639,"valence":0.109,"verdict":"into it","caption":"the fly is into \u201cZ2 endurance ride\u201d. it smells like a lovely recovery jog.","top_smell":"easy"},{"id":"demo10","name":"Open water swim","type":"Swim","date":"2026-09-24T07:46:00","weekday":"Thursday","distance_km":3.0,"moving_min":63.0,"elev_m":0.0,"avg_hr":131.0,"kudos":24.0,"features":{"speed":-0.707,"easy":1.049,"cadence":0.0,"hr_drift":-0.747,"climb":-0.741,"intervalness":-0.044},"glomeruli":{"DM1":0.118,"DM4":0.817,"VM2":0.354,"V":0.11,"DA2":0.111,"DA1":0.335},"kc_active":100,"kc_pattern":[12,15,18,97,102,159,183,189,191,196,197,210,219,230,242,257,276,307,312,321,336,369,377,387,393],"mbon":{"MBON01":-0.95,"MBON03":-0.41,"MBON04":-1.88,"MBON05":1.08,"MBON07":0.12,"MBON11":-1.47,"MBON12":0.31,"MBON14":-1.75,"MBON15":-1.19,"MBON16":-0.37,"MBON18":-1.17,"MBON19":-1.0},"innate":0.796,"learned":-0.421,"valence":0.309,"verdict":"LOVES","caption":"the fly loves \u201cOpen water swim\u201d. it smells like a lovely recovery jog.","top_smell":"easy"},{"id":"demo11","name":"Parkrun PB attempt","type":"Run","date":"2026-09-25T08:23:00","weekday":"Friday","distance_km":5.0,"moving_min":19.5,"elev_m":30.0,"avg_hr":171.0,"kudos":9.0,"features":{"speed":1.786,"easy":-1.816,"cadence":1.286,"hr_drift":-0.637,"climb":-0.061,"intervalness":-0.145},"glomeruli":{"DM1":0.951,"DM4":0.014,"VM2":0.878,"V":0.133,"DA2":0.327,"DA1":0.291},"kc_active":100,"kc_pattern":[18,32,70,103,163,183,197,207,224,236,245,257,276,277,312,317,319,321,336,369],"mbon":{"MBON01":-0.79,"MBON03":0.37,"MBON04":0.73,"MBON05":-0.19,"MBON07":-0.56,"MBON11":0.49,"MBON12":0.42,"MBON14":0.66,"MBON15":-1.69,"MBON16":-1.18,"MBON18":1.21,"MBON19":-1.44},"innate":0.867,"learned":-0.103,"valence":0.479,"verdict":"LOVES","caption":"the fly loves \u201cParkrun PB attempt\u201d. it smells like a PB.","top_smell":"speed"},{"id":"demo12","name":"Brick: bike + run off","type":"Ride","date":"2026-09-26T13:37:00","weekday":"Saturday","distance_km":50.0,"moving_min":96.8,"elev_m":420.0,"avg_hr":150.0,"kudos":15.0,"features":{"speed":0.564,"easy":-0.312,"cadence":0.439,"hr_drift":0.827,"climb":0.21,"intervalness":0.109},"glomeruli":{"DM1":0.629,"DM4":0.227,"VM2":0.569,"V":0.742,"DA2":0.455,"DA1":0.406},"kc_active":100,"kc_pattern":[18,75,83,163,183,186,191,197,224,236,245,248,257,276,290,317,321,336,342,347,369],"mbon":{"MBON01":-2.11,"MBON03":-1.54,"MBON04":-0.97,"MBON05":-0.82,"MBON07":-0.94,"MBON11":-0.17,"MBON12":-0.72,"MBON14":-0.72,"MBON15":-2.13,"MBON16":-1.17,"MBON18":-0.86,"MBON19":-1.68},"innate":-0.426,"learned":0.005,"valence":-0.253,"verdict":"HATES","caption":"the fly hates \u201cBrick: bike + run off\u201d. it smells like panic (CO2).","top_smell":"hr_drift"},{"id":"demo13","name":"Hill repeats","type":"Run","date":"2026-09-27T08:54:00","weekday":"Sunday","distance_km":9.0,"moving_min":45.0,"elev_m":310.0,"avg_hr":159.0,"kudos":19.0,"features":{"speed":-0.124,"easy":-0.956,"cadence":-0.068,"hr_drift":1.002,"climb":3.0,"intervalness":0.211},"glomeruli":{"DM1":0.3,"DM4":0.075,"VM2":0.324,"V":0.803,"DA2":0.996,"DA1":0.456},"kc_active":100,"kc_pattern":[20,75,83,118,163,164,183,186,197,248,257,276,290,347,369],"mbon":{"MBON01":-2.59,"MBON03":-1.59,"MBON04":-1.46,"MBON05":-1.58,"MBON07":-1.77,"MBON11":-0.22,"MBON12":-0.97,"MBON14":-0.8,"MBON15":-1.53,"MBON16":-0.54,"MBON18":-1.51,"MBON19":-1.52},"innate":-0.989,"learned":0.22,"valence":-0.505,"verdict":"HATES","caption":"the fly hates \u201cHill repeats\u201d. it smells like a damp hillside, literally.","top_smell":"climb"}],"learned_from_kudos":true,"summary":{"most_loved":"demo11","most_hated":"demo13","by_weekday":{"Monday":0.061,"Tuesday":-0.288,"Wednesday":0.197,"Thursday":0.313,"Friday":0.141,"Saturday":-0.312,"Sunday":-0.423},"by_type":{"Run":-0.127,"Ride":-0.058,"Swim":0.313}},"meta":{"generated":"2026-10-04T15:34:18+00:00","circuit":{"source":"demo","n_pn":16,"n_kc":2000,"n_mbon":12,"pn_kc_synapses":84437,"kc_mbon_synapses":17819},"glomeruli":[{"name":"DM1","feature":"speed","odour":"fruity ester"},{"name":"DM4","feature":"easy","odour":"vinegar / fermentation"},{"name":"VM2","feature":"cadence","odour":"ripe fruit"},{"name":"V","feature":"hr_drift","odour":"CO2"},{"name":"DA2","feature":"climb","odour":"geosmin \u2013 damp soil/mould"},{"name":"DA1","feature":"intervalness","odour":"cVA \u2013 male fly pheromone"}]}};
+const GLOM_ORDER = ["DM1","DM4","VM2","V","DA2","DA1"];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = { gcamp: css('--gcamp'), approach: css('--approach'), avoid: css('--avoid'), muted: css('--muted'), line: css('--line') };
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let R, cur = 0;
+const $ = id => document.getElementById(id);
+const vcol = v => v > 0.05 ? C.approach : v < -0.05 ? C.avoid : C.muted;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+
+function load(data) {
+  if (!data || !Array.isArray(data.activities) || !data.activities.length) throw new Error("That file doesn't look like flysniff output (no activities). Run python -m flysniff first.");
+  R = data;
+  const m = R.meta?.circuit || {};
+  $('src').innerHTML = m.source === 'demo'
+    ? 'circuit <b>demo</b> · ' + (m.n_kc ?? '?') + ' KCs'
+    : 'circuit <b>' + esc(m.source) + '</b> · ' + (m.n_pn ?? '?') + ' PNs · ' + (m.n_kc ?? '?') + ' KCs · ' + (m.n_mbon ?? '?') + ' MBONs';
+  const acts = R.activities.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  R.sorted = acts;
+  const best = acts.reduce((a, b) => b.valence > a.valence ? b : a), worst = acts.reduce((a, b) => b.valence < a.valence ? b : a);
+  $('love').innerHTML = esc(best.name) + '<small>' + esc(smellLine(best)) + '</small>';
+  $('hate').innerHTML = esc(worst.name) + '<small>' + esc(smellLine(worst)) + '</small>';
+  $('feed').innerHTML = acts.map((a, i) => `<li tabindex="0" data-i="${i}">
+      <span class="d">${esc(fmtDate(a.date))}</span>
+      <span class="n">${esc(a.name)}<small>${esc(a.type)}${a.distance_km != null ? ' · ' + a.distance_km + ' km' : ''}${a.elev_m ? ' · ' + Math.round(a.elev_m) + ' m↑' : ''}</small></span>
+      <span class="pill" style="background:${vcol(a.valence)}22;color:${vcol(a.valence)}">${a.valence > 0 ? '+' : ''}${a.valence.toFixed(2)}</span></li>`).join('');
+  drawWeek();
+  play(acts.indexOf(worst));
+}
+function smellLine(a) {
+  const g = (R.meta?.glomeruli || []).find(x => x.feature === a.top_smell);
+  return a.verdict.toLowerCase() + (g ? ' · ' + g.name + ' (' + g.odour + ')' : '');
+}
+
+function drawWeek() {
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const bw = R.summary?.by_weekday || {};
+  const mx = Math.max(0.2, ...Object.values(bw).map(Math.abs));
+  $('week').innerHTML = days.map(d => {
+    const v = bw[d]; const h = v == null ? 0 : Math.abs(v) / mx * 100;
+    const bar = `<span class="bar" style="height:${h}%;background:${vcol(v ?? 0)}"></span>`;
+    return `<div title="${d}: ${v == null ? 'no sessions' : v.toFixed(2)}">
+      <span style="display:flex;align-items:end">${v > 0 ? bar : ''}</span>
+      <span style="display:flex;align-items:start;border-top:1px solid ${C.line}">${v < 0 ? bar : ''}</span>
+      <span class="lab">${d.slice(0, 3)}</span></div>`;
+  }).join('');
+  [...$('week').querySelectorAll('.bar')].forEach(b => { b.style.display = 'block'; b.style.width = '100%'; });
+}
+
+function drawGlom(a) {
+  const meta = R.meta?.glomeruli || [];
+  $('glom').innerHTML = GLOM_ORDER.filter(g => a.glomeruli[g] != null).map(g => {
+    const m = meta.find(x => x.name === g) || {}; const v = a.glomeruli[g];
+    const bad = ['V','DA2','DA1'].includes(g);
+    return `<div><span>${g}</span><span class="track"><i style="width:${(v * 100).toFixed(0)}%;background:${bad ? C.avoid : C.approach}"></i></span><span>${v.toFixed(2)}</span>
+      <span class="o">${esc(m.odour || '')} ← ${esc((m.feature || '').replace('_', ' '))}</span></div>`;
+  }).join('');
+}
+
+// ---------------- the clip ----------------
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W, H, S, t0, fly, trail, puffs, A;
+function size() { const r = cv.getBoundingClientRect(); const d = devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; W = r.width; H = r.height; ctx.setTransform(d, 0, 0, d, 0, 0); S = W / 400; }
+addEventListener('resize', size);
+
+function play(i) {
+  cur = (i + R.sorted.length) % R.sorted.length; A = R.sorted[cur];
+  document.querySelectorAll('.feed li').forEach(li => li.setAttribute('aria-current', li.dataset.i == cur));
+  const v = A.valence;
+  $('cap').innerHTML = `<span class="v" style="background:${vcol(v)}">${esc(A.verdict)} · ${v > 0 ? '+' : ''}${v.toFixed(2)}</span><br>${esc(A.caption)}`;
+  $('handle').textContent = '@fly_' + (R.meta?.circuit?.source === 'demo' ? 'demo' : 'malecns') + ' · ' + fmtDate(A.date) + ' · ' + A.kc_active + ' Kenyon cells fired';
+  $('kudos').textContent = A.kudos ?? '–';
+  drawGlom(A);
+  t0 = performance.now();
+  fly = { x: W * 0.42, y: H * 0.42, a: -0.2, leg: 0 };
+  trail = []; puffs = [];
+}
+
+function arena() { return { cx: W / 2, cy: H * 0.42, r: Math.min(W * 0.4, H * 0.26) }; }
+
+function step(now) {
+  if (!A) return requestAnimationFrame(step);
+  const t = (now - t0) / 1000, ar = arena(), v = A.valence;
+  ctx.clearRect(0, 0, W, H);
+  // arena dish
+  ctx.fillStyle = '#0e1226'; ctx.beginPath(); ctx.arc(ar.cx, ar.cy, ar.r, 0, 7); ctx.fill();
+  ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+  // odour port on the right
+  const px = ar.cx + ar.r * 0.82, py = ar.cy;
+  if (!reduce && Math.random() < 0.6) puffs.push({ x: px, y: py, vx: -0.6 - Math.random() * 0.8, vy: (Math.random() - .5) * 0.6, life: 1 });
+  const odourCol = ['V','DA2','DA1'].includes(smellGlom(A)) ? C.avoid : C.approach;
+  puffs = puffs.filter(p => (p.life -= 0.006) > 0 && Math.hypot(p.x - ar.cx, p.y - ar.cy) < ar.r - 4);
+  for (const p of puffs) { p.x += p.vx * S; p.y += p.vy * S + Math.sin(t * 2 + p.x * .05) * .3; ctx.fillStyle = odourCol + Math.round(p.life * 60).toString(16).padStart(2, '0'); ctx.beginPath(); ctx.arc(p.x, p.y, (1 - p.life) * 14 * S + 2, 0, 7); ctx.fill(); }
+  ctx.fillStyle = odourCol; ctx.beginPath(); ctx.arc(px, py, 6 * S, 0, 7); ctx.fill();
+
+  // fly walks: heading pulled toward (v>0) or away from (v<0) the port, plus wander
+  const target = Math.atan2(py - fly.y, px - fly.x) + (v < 0 ? Math.PI : 0);
+  let da = ((target - fly.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  const commit = Math.min(1, Math.abs(v) * 2.2), sp = reduce ? 0 : (0.4 + Math.abs(v) * 2.4) * S;
+  fly.a += da * 0.05 * commit + (Math.random() - .5) * 0.25 * (1.2 - commit);
+  if (t > 0.6 && !(v < 0 && Math.hypot(fly.x - ar.cx, fly.y - ar.cy) > ar.r - 22 * S) && !(v > 0 && Math.hypot(fly.x - px, fly.y - py) < 18 * S)) {
+    const nx = fly.x + Math.cos(fly.a) * sp, ny = fly.y + Math.sin(fly.a) * sp;
+    if (Math.hypot(nx - ar.cx, ny - ar.cy) < ar.r - 18 * S) { fly.x = nx; fly.y = ny; fly.leg += sp * 0.4; } else fly.a += 0.3;
+  }
+  trail.push([fly.x, fly.y]); if (trail.length > 160) trail.shift();
+  ctx.strokeStyle = vcol(v) + '66'; ctx.lineWidth = 1.5 * S; ctx.beginPath(); trail.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  drawFly(fly.x, fly.y, fly.a, fly.leg, S);
+
+  neurons(t, ar.cy + ar.r + 18 * S);
+  requestAnimationFrame(step);
+}
+function smellGlom(a) { const g = (R.meta?.glomeruli || []).find(x => x.feature === a.top_smell); return g ? g.name : ''; }
+
+function drawFly(x, y, a, leg, s) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(s * 1.6, s * 1.6);
+  ctx.strokeStyle = '#c9b48a'; ctx.lineWidth = 1;
+  for (let k = -1; k <= 1; k++) for (const side of [-1, 1]) {
+    const sw = Math.sin(leg + k * 2 + (side > 0 ? Math.PI : 0)) * 3;
+    ctx.beginPath(); ctx.moveTo(k * 3, side * 2); ctx.lineTo(k * 4 + sw, side * 9); ctx.stroke();
+  }
+  ctx.fillStyle = '#ffffff30'; ctx.beginPath(); ctx.ellipse(-7, -4, 9, 3.5, -0.35, 0, 7); ctx.ellipse(-7, 4, 9, 3.5, 0.35, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.ellipse(-6, 0, 6.5, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#a07c48'; ctx.beginPath(); ctx.ellipse(1, 0, 4, 3.6, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#d9362b'; ctx.beginPath(); ctx.arc(5.2, -2.2, 1.9, 0, 7); ctx.arc(5.2, 2.2, 1.9, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function neurons(t, top) {
+  const pad = 14, w = W - pad * 2; let y = top;
+  ctx.font = `500 ${10 * Math.max(S, .85)}px "IBM Plex Mono", monospace`; ctx.textBaseline = 'top';
+  const label = (s) => { ctx.fillStyle = C.muted; ctx.fillText(s, pad, y); y += 14 * Math.max(S, .85); };
+  // glomeruli
+  label('ANTENNAL LOBE · glomeruli');
+  const gs = GLOM_ORDER, gw = w / gs.length;
+  gs.forEach((g, k) => {
+    const v = A.glomeruli[g] ?? 0, pulse = reduce ? 1 : 0.75 + 0.25 * Math.sin(t * 6 + k);
+    const cx = pad + gw * (k + .5), r = 6 + v * 9;
+    ctx.fillStyle = C.gcamp + Math.round(30 + 200 * v * pulse).toString(16).padStart(2, '0');
+    ctx.beginPath(); ctx.arc(cx, y + 12, r * Math.max(S, .85), 0, 7); ctx.fill();
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(g, cx, y + 28 * Math.max(S, .85)); ctx.textAlign = 'left';
+  });
+  y += 46 * Math.max(S, .85);
+  // KC raster: 400 sampled KCs, the active ones flicker on
+  label(`MUSHROOM BODY · ${A.kc_active} of ${R.meta?.circuit?.n_kc ?? '?'} Kenyon cells`);
+  const cols = 40, rows = 10, cw = w / cols, ch = Math.min(cw, 6 * Math.max(S, .85));
+  const on = new Set(A.kc_pattern || []);
+  for (let k = 0; k < cols * rows; k++) {
+    const x = pad + (k % cols) * cw, yy = y + Math.floor(k / cols) * ch;
+    const lit = on.has(k) && (reduce || Math.sin(t * 9 + k * 1.7) > -0.6);
+    ctx.fillStyle = lit ? C.gcamp : '#ffffff0d';
+    ctx.fillRect(x + .5, yy + .5, cw - 1.5, ch - 1.5);
+  }
+  y += rows * ch + 10;
+  // MBONs: diverging from centre, colour = approach/avoid role
+  const mb = Object.entries(A.mbon || {}); if (!mb.length) return;
+  label('MBONs · output vs naive fly');
+  const bw = w / mb.length, mid = y + 22 * Math.max(S, .85), mx = Math.max(1, ...mb.map(([, v]) => Math.abs(v)));
+  const AVOID = ['MBON01','MBON03','MBON04','MBON05','MBON29'];
+  mb.forEach(([n, v], k) => {
+    const h = v / mx * 18 * Math.max(S, .85);
+    ctx.fillStyle = AVOID.includes(n) ? C.avoid : C.approach;
+    ctx.fillRect(pad + k * bw + 2, h < 0 ? mid : mid - h, bw - 4, Math.abs(h) || 1);
+  });
+  ctx.fillStyle = C.line; ctx.fillRect(pad, mid, w, 1);
+}
+
+// ---------------- wiring ----------------
+$('feed').addEventListener('click', e => { const li = e.target.closest('li'); if (li) play(+li.dataset.i); });
+$('feed').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const li = e.target.closest('li'); if (li) { e.preventDefault(); play(+li.dataset.i); } } });
+$('replay').onclick = () => play(cur);
+$('next').onclick = () => play(cur + 1);
+function readFile(f) {
+  const r = new FileReader();
+  r.onload = () => { try { load(JSON.parse(r.result)); $('err').hidden = true; } catch (e) { $('err').textContent = e.message; $('err').hidden = false; } };
+  r.readAsText(f);
+}
+$('file').onchange = e => e.target.files[0] && readFile(e.target.files[0]);
+addEventListener('dragover', e => { e.preventDefault(); $('drop').hidden = false; });
+addEventListener('dragleave', e => { if (!e.relatedTarget) $('drop').hidden = true; });
+addEventListener('drop', e => { e.preventDefault(); $('drop').hidden = true; const f = e.dataTransfer.files[0]; f && readFile(f); });
+
+size(); load(DEMO); requestAnimationFrame(step);
+</script>
