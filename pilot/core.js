@@ -26,8 +26,9 @@
   // Preferred rotation (roll, pitch, yaw) of each visual neuron, from fly physiology:
   // HS: horizontal front-to-back motion in their own eye (yaw towards the other side);
   // H1/H2: back-to-front (yaw towards their own side); VS: downward motion, so rotations
-  // about horizontal axes, frontal cells ~pitch, lateral cells ~roll. The 9 VS cells per
-  // side aren't numbered in this release, so they're ordered by where their dendrites sit.
+  // about horizontal axes spread over ~180 deg of azimuth (frontal and rear cells see pitch
+  // with opposite signs, lateral cells see roll). The 9 VS cells per side aren't numbered in
+  // this release, so the per-cell assignment here is approximate (ordered by skeleton centroid).
   function lptcAxes(D) {
     const axes = {};
     const cent = n => { const p = n.skel.p; let s = [0, 0, 0]; for (let i = 0; i < p.length; i += 3) { s[0] += p[i]; s[1] += p[i + 1]; s[2] += p[i + 2]; } return s.map(v => v / (p.length / 3)); };
@@ -35,12 +36,12 @@
       const sg = side === 'L' ? 1 : -1;          // + = roll right / yaw right excites left-side cells
       const vs = D.nodes.map((n, i) => [n, i]).filter(([n]) => n.type === 'VS' && n.side === side)
         .sort((a, b) => cent(a[0])[2] - cent(b[0])[2]);
-      vs.forEach(([, i], k) => { const al = (k / Math.max(vs.length - 1, 1)) * Math.PI / 2; axes[i] = [sg * Math.sin(al), Math.cos(al), 0]; });
+      vs.forEach(([, i], k) => { const al = (k / Math.max(vs.length - 1, 1)) * Math.PI; axes[i] = [sg * Math.sin(al), Math.cos(al), 0]; });
       D.nodes.forEach((n, i) => {
         if (n.side !== side) return;
-        if (n.type === 'HSN') axes[i] = [sg * 0.3, 0, sg];
+        if (n.type === 'HSN') axes[i] = [0, -0.3, sg];       // dorsal/ventral HS also feel a little pitch
         if (n.type === 'HSE') axes[i] = [0, 0, sg];
-        if (n.type === 'HSS') axes[i] = [-sg * 0.3, 0, sg];
+        if (n.type === 'HSS') axes[i] = [0, 0.3, sg];
         if (n.type === 'H1' || n.type === 'H2') axes[i] = [0, 0, -sg];
       });
     }
@@ -70,23 +71,31 @@
   const D2R = Math.PI / 180;
   function makePlane(rng0) {
     let rng = rng0; const s = {};
-    const reset = () => Object.assign(s, { phi: (rng() - 0.5) * 6 * D2R, th: (rng() - 0.5) * 4 * D2R, psi: 0, p: 0, q: 0, r: 0, h: 150, gp: 0, gq: 0, gr: 0, t: 0, x: 0 });
+    const reset = () => Object.assign(s, { phi: (rng() - 0.5) * 6 * D2R, th: (rng() - 0.5) * 4 * D2R, psi: 0, p: 0, q: 0, r: 0, h: 150, gp: 0, gq: 0, gr: 0, t: 0, N: 0, E: 0, om: [0, 0, 0] });
     reset();
     const gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += rng(); return (u - 3) * 1.41; };
     return {
       s, reset, setRng(f) { rng = f; },
       step(u, turb, dt) {           // u = [aileron, elevator, rudder] in [-1, 1]
         const V = 45;
-        const c = 4 * turb;     // gust strength; turb 0.5 is a breezy day
+        const c = 4 * turb;     // gust strength; 0.5 is moderate turbulence, 0.9 severe
         for (const [k, sd] of [['gp', 1], ['gq', 0.45], ['gr', 0.4]]) s[k] += (-s[k] / 0.7) * dt + sd * c * Math.sqrt(dt) * gauss();
-        const pd = -1.2 * s.p - 1.0 * Math.sin(s.phi) + 2.6 * u[0] + s.gp;      // dihedral gives a gentle wings-level tendency
+        // Deliberately simplified so it's learnable in minutes. The roll mode is slow (tau ~0.8 s)
+        // and -1.0 sin(phi) is a lumped, strong spiral stability rather than true dihedral via
+        // sideslip. th is the flight-path angle, held by a spring (no short-period mode).
+        const pd = -1.2 * s.p - 1.0 * Math.sin(s.phi) + 0.3 * s.r + 2.6 * u[0] + s.gp;   // + yawing moment due to yaw rate
         const qd = -1.8 * s.q - 1.6 * s.th + 2.2 * u[1] + s.gq;
-        const rd = -1.0 * s.r + 0.25 * s.p + 1.5 * u[2] + s.gr;
+        const rd = -1.0 * s.r - 0.15 * s.p + 0.4 * u[2] + s.gr;                           // adverse yaw from roll rate
         s.p += pd * dt; s.q += qd * dt; s.r += rd * dt;
-        s.phi += s.p * dt; s.th += s.q * dt; s.psi += (s.r + 9.81 / V * Math.tan(s.phi)) * dt;
-        s.h += (V * Math.sin(s.th) - 22 * (1 / Math.max(Math.cos(s.phi), 0.2) - 1)) * dt;
-        s.x += V * dt; s.t += dt;
-        return Math.abs(s.phi) > 75 * D2R || Math.abs(s.th) > 45 * D2R || s.h < 0;
+        const W = 9.81 / V * Math.sin(s.phi);                 // turn rate from a bank with n = 1 (not pulled)
+        s.phi += s.p * dt;
+        s.th += (s.q - 9.81 / V * (1 - Math.cos(s.phi))) * dt;   // banked, the lift deficit drops the nose
+        s.psi += (s.r * Math.cos(s.phi) + W) * dt;
+        s.h += V * Math.sin(s.th) * dt;
+        s.N += V * Math.cos(s.th) * Math.cos(s.psi) * dt; s.E += V * Math.cos(s.th) * Math.sin(s.psi) * dt;
+        s.om = [s.p, s.q + W * Math.sin(s.phi), s.r + W * Math.cos(s.phi)];   // body rates incl. the turn: what the fly's eyes see
+        s.t += dt;
+        return Math.abs(s.phi) > 75 * D2R || Math.abs(s.th) > 45 * D2R || s.h < 0;   // loss of control or ground
       },
     };
   }

@@ -109,7 +109,7 @@ body.rec .real { pointer-events: none; }
       <div class="seg" role="group" aria-label="Learning speed">
         <button data-x="1">1×</button><button data-x="4" aria-pressed="true">4×</button><button data-x="16">16×</button><button data-x="64">64×</button>
       </div>
-      <label class="turb lab" for="turb">Turbulence <input id="turb" type="range" min="0.1" max="0.9" step="0.05" value="0.45"> <span class="num" id="turbv">0.45</span></label>
+      <label class="turb lab" for="turb">Turbulence <input id="turb" type="range" min="0.1" max="0.9" step="0.05" value="0.45"> <span class="num" id="turbv">0.45 moderate</span></label>
       <button id="rec" aria-pressed="false" title="Hide controls for screen recording">Record mode</button>
     </div>
     <button id="reset">Reset the fly's brain</button>
@@ -228,7 +228,7 @@ function endAttempt(crashed) {
 function simulate(seconds) {
   let n = Math.round(seconds / DT);
   while (n-- > 0) {
-    brain.step([plane.s.p, plane.s.q, plane.s.r], DT);
+    brain.step(plane.s.om, DT);
     const u = trainer.act(brain.r, DT);
     const crashed = plane.step(u, S.turb, DT);
     S.lev += plane.s.phi ** 2 * DT;
@@ -302,24 +302,25 @@ const planeView = (() => {
   const NS = 140, sp = new Float32Array(NS * 6), sg = new T3.BufferGeometry(); sg.setAttribute('position', new T3.BufferAttribute(sp, 3));
   const streaks = new T3.LineSegments(sg, new T3.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 })); scene.add(streaks);
   const seeds = Array.from({ length: NS }, () => [Math.random() - 0.5, Math.random() - 0.5, Math.random()]);
-  let pos = new T3.Vector3(0, 150, 0), yaw = 0;
+  let pos = new T3.Vector3(0, 150, 0), yaw = 0, lastT = 0; const off = { x: 0, z: 0 };
   function size() { const r = cv.parentElement.getBoundingClientRect(); R.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); }
   new ResizeObserver(size).observe(cv.parentElement); size();
   const tmp = new T3.Vector3();
   return {
     render(now) {
-      const s = plane.s, V = 45;
+      const s = plane.s;
       yaw = -s.psi;
-      // world position: integrate forward along heading (render-time approximation)
-      pos.y = Math.max(2, s.h);
-      const fwd = new T3.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
-      pos.addScaledVector(fwd, V * 0.016 * Math.min(S.speed, 4) * (S.paused ? 0 : 1));
+      // world position comes from the sim (north = -z, east = +x); carried across attempts
+      if (s.t < lastT) { off.x = pos.x; off.z = pos.z; }
+      lastT = s.t;
+      pos.set(off.x + s.E, Math.max(2, s.h), off.z - s.N);
+      const fwd = new T3.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
       P.position.copy(pos);
       P.rotation.set(0, 0, 0); P.rotation.order = 'YXZ'; P.rotation.y = yaw; P.rotation.x = s.th; P.rotation.z = -s.phi;
       prop.rotation.z += 0.9;
       const shake = reduce ? 0 : Math.min(1.2, Math.hypot(s.gp, s.gq) * 0.12) * S.turb;
       tmp.set(0, 7, 24).applyAxisAngle(new T3.Vector3(0, 1, 0), yaw).add(pos);
-      cam.position.lerp(tmp, 0.12); cam.position.x += (Math.random() - 0.5) * shake; cam.position.y += (Math.random() - 0.5) * shake;
+      cam.position.copy(tmp);     // locked to the plane: a lagging camera falls behind at 16x/64x cam.position.x += (Math.random() - 0.5) * shake; cam.position.y += (Math.random() - 0.5) * shake;
       cam.lookAt(pos.x + fwd.x * 10, pos.y + 1, pos.z + fwd.z * 10);
       // recycle clouds around the plane
       for (const c of clouds) { if (c.position.distanceTo(pos) > 1700) c.position.set(pos.x + fwd.x * 1500 + (Math.random() - 0.5) * 1600, 200 + Math.random() * 140, pos.z + fwd.z * 1500 + (Math.random() - 0.5) * 1600); }
@@ -446,8 +447,8 @@ function drawCurve() {
 function drawStrip() {
   const [g, W, H] = hidpi($('strip')), hist = S.hist, t1 = plane.s.t, t0 = t1 - 10;
   g.clearRect(0, 0, W, H);
-  const ch = [['ROLL', h => h.phi / 1.3, COL.lptc], ['PITCH', h => h.th / 0.8, COL.lptc], ['YAW', h => h.r / 1.5, COL.lptc], ['AIL', h => h.u[0], COL.mn], ['ELEV', h => h.u[1], COL.mn], ['RUD', h => h.u[2], COL.mn]];
-  const lw = 44, rh = H / ch.length;
+  const ch = [['ROLL', h => h.phi / 1.3, COL.lptc], ['PITCH', h => h.th / 0.8, COL.lptc], ['YAW RATE', h => h.r / 1.5, COL.lptc], ['AIL', h => h.u[0], COL.mn], ['ELEV', h => h.u[1], COL.mn], ['RUD', h => h.u[2], COL.mn]];
+  const lw = 60, rh = H / ch.length;
   g.font = '500 10px "JetBrains Mono", monospace'; g.textBaseline = 'middle';
   const pts = hist.filter(h => h.t >= t0 && h.t <= t1);
   ch.forEach(([name, f, color], k) => {
@@ -508,7 +509,8 @@ requestAnimationFrame(frame);
 // ---------------- controls ----------------
 $('pause').onclick = () => { S.paused = !S.paused; $('pause').textContent = S.paused ? 'Resume' : 'Pause'; $('pause').setAttribute('aria-pressed', S.paused); };
 document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { S.speed = +b.dataset.x; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-$('turb').oninput = e => { S.turb = +e.target.value; $('turbv').textContent = S.turb.toFixed(2); };
+const turbWord = t => t < 0.3 ? 'light' : t < 0.6 ? 'moderate' : 'severe';
+$('turb').oninput = e => { S.turb = +e.target.value; $('turbv').textContent = S.turb.toFixed(2) + ' ' + turbWord(S.turb); };
 $('reset').onclick = () => {
   trainer.reset(); S.attempts = []; S.best = 0; S.bestIdx = -1; S.last = null; S.medianAtStart = null; S.saidDopa = false; S.hist = [];
   $('tLast').textContent = '–'; $('tBest').textContent = '–'; showDopamine(0); startAttempt(); drawCurve();

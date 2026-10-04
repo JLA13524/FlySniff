@@ -22,7 +22,7 @@ node pilot/train_test.js 1 120     # seed, attempts: prints mean time aloft per 
 python pilot/build.py              # -> pilot/fly-pilot.html
 ```
 
-Typical run at turbulence 0.5: ~5–12 s aloft at first, ~20–50 s after 120 attempts. A perfect
+Typical run at turbulence 0.45 (moderate): ~5–12 s aloft at first, ~20–50 s after 120 attempts. A perfect
 rate-damping autopilot on the same plane manages 90 s; the fly's circuit, read out as well as
 possible, tops out around 35–45 s, because a lot of rotation information doesn't survive the
 trip to the wing motor neurons in this simplified model.
