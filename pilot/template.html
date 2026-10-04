@@ -1,0 +1,521 @@
+<title>Fly Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a night-session pit wall. Top bar of controls, a split stage (plane | the fly's
+   nervous system) with the caption across the divider, and an ATLAS-style telemetry deck.
+   Single committed dark look; F1 timing colours: green = reward/PB, purple = overall best only. */
+:root {
+  --carbon: #0F141A; --panel: #161D26; --hairline: #283340; --text: #DCE3EA; --muted: #8592a0;
+  --pb: #2FD98A; --purple: #A66BFF; --slower: #E8C547;
+  --lptc: #47C1E8; --dn: #FFA23A; --inter: #8DA2B8; --mn: #FF5468;
+  --sky: #2A4E6B; --ground: #4A3A2C;
+  --head: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; background: var(--carbon); color: var(--text); }
+body { margin: 0; font: 14px/1.45 var(--body); }
+.app { min-height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; padding-inline: 16px; padding-block: 10px 16px; max-width: 1920px; margin: 0 auto; }
+.lab { font: 600 12px/1 var(--head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 14px 22px; flex-wrap: wrap; min-height: 48px; }
+.mark { font: 600 26px/1 var(--head); letter-spacing: .04em; text-transform: uppercase; }
+.mark span { color: var(--lptc); }
+.ctrls { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; flex: 1; }
+button { font: 600 14px/1 var(--head); letter-spacing: .06em; text-transform: uppercase; color: var(--text); background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 9px 12px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--lptc); outline-offset: 2px; }
+.seg { display: flex; }
+.seg button { border-radius: 0; margin-left: -1px; font-family: var(--mono); font-weight: 500; letter-spacing: 0; text-transform: none; padding: 8px 10px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; margin: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--carbon); border-color: var(--text); position: relative; }
+.turb { display: flex; align-items: center; gap: 8px; }
+input[type=range] { accent-color: var(--lptc); width: 120px; }
+#reset { border-color: #7a2633; color: #ff8d9a; background: transparent; }
+#rec[aria-pressed="true"] { background: var(--mn); color: var(--carbon); border-color: var(--mn); }
+
+/* stage */
+.stage { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: 420px; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; background: #0a0e13; }
+.pane { position: relative; min-width: 0; min-height: 0; }
+.pane + .pane { border-left: 1px solid var(--hairline); }
+.pane canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#brainPane canvas.gl { cursor: grab; touch-action: none; }
+.caption { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); width: min(86%, 900px); text-align: center; pointer-events: none; z-index: 3;
+  font: 600 clamp(22px, 2.6vw, 40px)/1.08 var(--head); text-wrap: balance; text-shadow: 0 2px 16px #000, 0 0 2px #000; }
+.caption em { font-style: normal; color: var(--purple); }
+.paneTag { position: absolute; left: 14px; bottom: 12px; z-index: 2; }
+#att { position: absolute; right: 14px; bottom: 14px; width: 120px; height: 120px; z-index: 2; }
+.real { position: absolute; left: 14px; bottom: 12px; z-index: 3; font: 500 11px/1.3 var(--mono); color: var(--muted); background: #0f141acc; border: 1px solid var(--hairline); border-radius: 6px; padding: 6px 9px; cursor: pointer; text-align: left; letter-spacing: 0; text-transform: none; }
+.real b { color: var(--text); font-weight: 500; }
+.pop { position: absolute; left: 14px; bottom: 50px; z-index: 4; width: min(440px, calc(100% - 28px)); background: var(--panel); border: 1px solid var(--hairline); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: var(--text); box-shadow: 0 10px 40px #000a; }
+.pop p { margin: 0 0 8px; max-width: 62ch; }
+.pop p:last-child { margin: 0; color: var(--muted); }
+.legend { position: absolute; right: 14px; top: 14px; z-index: 2; display: grid; gap: 4px; justify-items: end; font: 500 11px/1 var(--mono); color: var(--muted); pointer-events: none; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; }
+.toast { position: absolute; left: 14px; top: 14px; z-index: 3; font: 600 15px/1 var(--head); letter-spacing: .08em; text-transform: uppercase; padding: 7px 10px; border-radius: 5px; background: #2fd98a22; color: var(--pb); border: 1px solid #2fd98a55; transition: opacity .3s; }
+.crash { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; pointer-events: none; background: radial-gradient(circle, transparent 45%, #ff546855 100%); }
+.crash div { font: 600 clamp(28px, 4vw, 56px)/1 var(--head); letter-spacing: .06em; text-transform: uppercase; background: #0f141ae6; border: 1px solid var(--mn); color: var(--text); padding: 12px 22px; border-radius: 6px; }
+.crash.flash { background: #ff546888; }
+
+/* deck */
+.deck { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--hairline); border-radius: 8px; padding: 12px 14px; min-width: 0; display: grid; gap: 8px; align-content: start; }
+.c2 { grid-column: span 2; } .c4 { grid-column: span 4; }
+.timing { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: baseline; }
+.big { font: 500 40px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.timing .v { font: 500 18px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.odo { display: inline-block; overflow: hidden; height: 1em; vertical-align: bottom; }
+.odo span { display: block; transition: transform .35s cubic-bezier(.3,1.4,.6,1); }
+.chart { width: 100%; height: 150px; display: block; }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.dabar { height: 120px; width: 26px; border: 1px solid var(--hairline); border-radius: 4px; position: relative; overflow: hidden; background: #0f141a; }
+.dabar i { position: absolute; left: 0; right: 0; bottom: 50%; background: var(--pb); transition: height .45s cubic-bezier(.3,1.5,.5,1), bottom .45s cubic-bezier(.3,1.5,.5,1); }
+.dabar::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--muted); }
+.daval { font: 500 18px/1 var(--mono); }
+#gauge, #stick { width: 100%; max-width: 120px; aspect-ratio: 1; display: block; }
+
+/* record mode: just the show */
+body.rec .ctrls > :not(#rec), body.rec #reset, body.rec .deck .card:not(.keep) { visibility: hidden; }
+body.rec, body.rec * { cursor: none !important; }
+body.rec .real { pointer-events: none; }
+
+@media (max-width: 1100px) { .c2 { grid-column: span 3; } .c4 { grid-column: span 6; } }
+@media (max-width: 760px) {
+  .app { grid-template-rows: auto auto auto; }
+  .stage { grid-template-columns: 1fr; grid-template-rows: 46vh 36vh; }
+  .pane + .pane { border-left: 0; border-top: 1px solid var(--hairline); }
+  .caption { top: 10px; font-size: 26px; }
+  .c2, .c4 { grid-column: span 12; }
+  .deck { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c2 { grid-column: span 1; } .c4 { grid-column: span 2; order: 2; }
+  #att { width: 84px; height: 84px; }
+  .legend { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .odo span, .dabar i { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="mark">Fly <span>Pilot</span></div>
+    <div class="ctrls">
+      <button id="pause" aria-pressed="false">Pause</button>
+      <div class="seg" role="group" aria-label="Learning speed">
+        <button data-x="1">1×</button><button data-x="4" aria-pressed="true">4×</button><button data-x="16">16×</button><button data-x="64">64×</button>
+      </div>
+      <label class="turb lab" for="turb">Turbulence <input id="turb" type="range" min="0.1" max="0.9" step="0.05" value="0.45"> <span class="num" id="turbv">0.45</span></label>
+      <button id="rec" aria-pressed="false" title="Hide controls for screen recording">Record mode</button>
+    </div>
+    <button id="reset">Reset the fly's brain</button>
+  </header>
+
+  <section class="stage" id="stage">
+    <div class="pane" id="planePane">
+      <canvas class="gl" id="planeCv" aria-label="The plane, chase view"></canvas>
+      <canvas id="att" aria-label="Attitude indicator"></canvas>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+    <div class="pane" id="brainPane">
+      <canvas class="gl" id="brainCv" aria-label="The fly's flight circuit in 3D, drag to rotate"></canvas>
+      <div class="legend" id="legend"></div>
+      <button class="real" id="realBtn" aria-expanded="false"><b>Real wiring</b> · simulated activity · learned muscle→control map</button>
+      <div class="pop" id="realPop" hidden>
+        <p><b>Real:</b> the 264 neurons and ~4,000 connections drawn here, with their transmitters, are the fly's actual flight-stabilisation pathway from the MaleCNS v1.0 connectome (Janelia, Google Research and collaborators, CC BY 4.0, via neuPrint). Rotation-detecting cells in the optic lobes (HS, VS, H1, H2) feed descending neurons such as DNa02, which drive interneurons and wing-steering motor neurons in the nerve cord.</p>
+        <p><b>Simulated:</b> each neuron is a single firing rate passed along those connections, excitatory or inhibitory by transmitter. The plane's rotation is fed to the visual neurons as the motion a fly would see.</p>
+        <p><b>Learned:</b> a fly has no ailerons. A 3 × 15 map from its left/right wing motor neurons to the plane's controls starts random and is learned by trial and error: each pair of attempts tries a small change both ways through the same gusts and keeps the better one. The brain's wiring itself never changes.</p>
+        <p>No fly is involved and this isn't a fly thinking. It's a real wiring diagram running a cartoon of neural activity.</p>
+      </div>
+    </div>
+    <div class="caption" id="caption"></div>
+    <div class="crash" id="crash" hidden><div id="crashText"></div></div>
+  </section>
+
+  <section class="deck">
+    <div class="card c2 keep">
+      <span class="lab">Attempt</span>
+      <span class="big"><span class="odo"><span id="attempt">1</span></span></span>
+      <div class="timing">
+        <span class="lab">Current</span><span class="v" id="tCur">0:00.0</span>
+        <span class="lab">Last</span><span class="v" id="tLast">–</span>
+        <span class="lab">Best</span><span class="v" id="tBest" style="color:var(--purple)">–</span>
+      </div>
+    </div>
+    <div class="card c4 keep">
+      <span class="lab">Time aloft per attempt <span style="color:var(--pb)">— rolling median</span></span>
+      <canvas class="chart" id="curve" aria-label="Learning curve: seconds aloft for each attempt"></canvas>
+    </div>
+    <div class="card c4">
+      <span class="lab">Live · last 10 s</span>
+      <canvas class="chart" id="strip" aria-label="Strip chart of roll, pitch, yaw and control demands"></canvas>
+    </div>
+    <div class="card c2">
+      <div class="meters">
+        <div style="display:grid;gap:6px;justify-items:start">
+          <span class="lab">Dopamine</span>
+          <div class="dabar"><i id="daBar"></i></div>
+          <span class="daval num" id="daVal">0.0</span>
+        </div>
+        <div style="display:grid;gap:6px">
+          <span class="lab">Gusts</span><canvas id="gauge"></canvas>
+          <span class="lab">Stick</span><canvas id="stick"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+/*__CORE__*/
+</script>
+<script>
+(() => {
+const FP = window.FlyPilot, T3 = window.THREE;
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = { lptc: css('--lptc'), dn: css('--dn'), inter: css('--inter'), mn: css('--mn'), pb: css('--pb'), purple: css('--purple'), slower: css('--slower'),
+  text: css('--text'), muted: css('--muted'), hair: css('--hairline'), panel: css('--panel'), sky: css('--sky'), ground: css('--ground') };
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmt = s => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
+
+// ---------------- simulation ----------------
+const net = FP.buildNet(DATA), seed = (Date.now() % 100000) | 0, rng = FP.mulberry32(seed);
+const brain = FP.makeBrain(net), plane = FP.makePlane(rng), trainer = FP.makeTrainer(net, rng);
+const DT = 1 / 120;
+for (let i = 0; i < 240; i++) brain.step([0, 0, 0], DT);
+const S = { speed: 4, paused: false, turb: 0.45, attempts: [], best: 0, bestIdx: -1, last: null, lev: 0, frozenUntil: 0,
+  hist: [], dopamine: 0, captionAt: 0, milestones: new Set(), medianAtStart: null };
+
+function startAttempt() {
+  plane.setRng(FP.mulberry32(trainer.begin())); plane.reset(); S.lev = 0; S.milestones.clear();
+  $('attempt').parentElement.style.transform = '';
+  setOdo(trainer.attempt);
+}
+startAttempt();
+
+function endAttempt(crashed) {
+  const t = plane.s.t, score = t - 5 * S.lev / Math.max(t, 1);
+  const res = trainer.end(score);
+  const prevBest = S.best, prevLast = S.last;
+  S.attempts.push(t); S.last = t;
+  const isBest = t > S.best; if (isBest) { S.best = t; S.bestIdx = S.attempts.length - 1; }
+  S.dopamine = res.dopamine;
+  $('tLast').textContent = fmt(t);
+  $('tLast').style.color = prevLast == null ? COL.text : t > prevLast ? COL.pb : COL.slower;
+  $('tBest').textContent = fmt(S.best);
+  showDopamine(res.dopamine);
+  if (res.dopamine > 0) brainView.wash(Math.min(1, res.dopamine / 10));
+  storyAfterAttempt(t, isBest, prevBest, crashed);
+  drawCurve();
+  const slow = S.speed <= 4 && !reduce;
+  if (slow) {
+    $('crashText').textContent = `Attempt ${trainer.attempt} · ${fmt(t)}`;
+    $('crash').hidden = false; $('crash').classList.add('flash');
+    setTimeout(() => $('crash').classList.remove('flash'), 120);
+    S.frozenUntil = performance.now() + 900;
+    setTimeout(() => { $('crash').hidden = true; }, 900);
+  } else if (S.speed === 16) { $('crash').hidden = false; $('crash').classList.add('flash'); $('crashText').textContent = ''; setTimeout(() => { $('crash').hidden = true; $('crash').classList.remove('flash'); }, 120); }
+  startAttempt();
+}
+
+function simulate(seconds) {
+  let n = Math.round(seconds / DT);
+  while (n-- > 0) {
+    brain.step([plane.s.p, plane.s.q, plane.s.r], DT);
+    const u = trainer.act(brain.r, DT);
+    const crashed = plane.step(u, S.turb, DT);
+    S.lev += plane.s.phi ** 2 * DT;
+    if (S.hist.length === 0 || plane.s.t - S.hist[S.hist.length - 1].t >= 0.05 || plane.s.t < S.hist[S.hist.length - 1].t)
+      S.hist.push({ t: plane.s.t, g: performance.now(), phi: plane.s.phi, th: plane.s.th, r: plane.s.r, u: [...u] });
+    for (const m of [10, 30, 60]) if (plane.s.t >= m && !S.milestones.has(m)) { S.milestones.add(m); toast(`${m} s aloft`); }
+    if (crashed || plane.s.t >= 90) { endAttempt(crashed); if (S.speed <= 4) return; }
+  }
+}
+
+// ---------------- story: captions + toasts ----------------
+function setCaption(html, force) {
+  const now = performance.now();
+  if (!force && S.speed >= 16 && now - S.captionAt < 3000) return;
+  S.captionAt = now; $('caption').innerHTML = html;
+}
+function median(a) { if (!a.length) return 0; const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; }
+function storyAfterAttempt(t, isBest, prevBest, crashed) {
+  const n = S.attempts.length, med = median(S.attempts.slice(-10));
+  if (S.medianAtStart == null && n >= 6) S.medianAtStart = median(S.attempts.slice(0, 6));
+  if (t >= 90) setCaption(`Attempt ${n}. Ninety seconds without crashing. Landed.`, true);
+  else if (isBest && n > 3) setCaption(`New best: <em>${fmt(t)}</em>`, true);
+  else if (n <= 3) setCaption("Crash. The fly doesn't know which muscles move the wings… yet.");
+  else if (S.medianAtStart && med > 2 * S.medianAtStart && !S.saidDopa) { S.saidDopa = true; setCaption("Dopamine. It's starting to figure it out.", true); }
+  else if (S.medianAtStart && med > 2.5 * S.medianAtStart) setCaption(`Attempt ${n}. It's holding level in turbulence.`);
+  else if (n > 3) setCaption(`Attempt ${n}. Still learning which way is up.`);
+}
+let toastT = 0;
+function toast(msg) {
+  if (S.speed > 16) return;
+  $('toast').textContent = msg; $('toast').hidden = false; clearTimeout(toastT);
+  toastT = setTimeout(() => ($('toast').hidden = true), 2000);
+}
+setCaption("A fruit fly's brain is flying this plane. It has no idea how.", true);
+
+// ---------------- plane view ----------------
+const planeView = (() => {
+  const cv = $('planeCv'), R = new T3.WebGLRenderer({ canvas: cv, antialias: true });
+  R.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  const scene = new T3.Scene(), skyC = new T3.Color('#4f7fa6');
+  scene.background = skyC; scene.fog = new T3.Fog(skyC, 300, 2600);
+  const cam = new T3.PerspectiveCamera(55, 1, 0.5, 5000);
+  scene.add(new T3.HemisphereLight('#cfe6ff', '#4a3a2c', 0.9));
+  const sun = new T3.DirectionalLight('#fff3df', 0.9); sun.position.set(-300, 500, 200); scene.add(sun);
+  // ground: patchwork fields drawn into a canvas texture
+  const tc = document.createElement('canvas'); tc.width = tc.height = 512; const g = tc.getContext('2d');
+  const fields = ['#5b6b3a', '#6d7a43', '#7a6f45', '#4f6236', '#86804f', '#5f5a3a'];
+  for (let i = 0; i < 64; i++) { g.fillStyle = fields[i % fields.length]; g.fillRect((i % 8) * 64, Math.floor(i / 8) * 64, 64, 64); }
+  g.strokeStyle = '#3e4a2a'; g.lineWidth = 3; for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 512); g.moveTo(0, i * 64); g.lineTo(512, i * 64); g.stroke(); }
+  const tex = new T3.CanvasTexture(tc); tex.wrapS = tex.wrapT = T3.RepeatWrapping; tex.repeat.set(60, 60);
+  const ground = new T3.Mesh(new T3.PlaneGeometry(20000, 20000), new T3.MeshLambertMaterial({ map: tex }));
+  ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  // clouds
+  const cloudMat = new T3.MeshLambertMaterial({ color: '#f2f5f8', transparent: true, opacity: 0.85 });
+  const clouds = [];
+  for (let i = 0; i < 70; i++) {
+    const c = new T3.Group(), n = 3 + Math.floor(Math.random() * 4);
+    for (let k = 0; k < n; k++) { const s = new T3.Mesh(new T3.IcosahedronGeometry(20 + Math.random() * 25, 0), cloudMat); s.position.set(k * 28 - n * 14, Math.random() * 10, Math.random() * 20); c.add(s); }
+    c.position.set((Math.random() - 0.5) * 3000, 210 + Math.random() * 120, (Math.random() - 0.5) * 3000); scene.add(c); clouds.push(c);
+  }
+  // plane: low-poly high-wing trainer
+  const P = new T3.Group();
+  const body = new T3.MeshLambertMaterial({ color: '#e9edf1' }), trim = new T3.MeshLambertMaterial({ color: '#d33a4c' }), dark = new T3.MeshLambertMaterial({ color: '#28323d' });
+  const box = (w, h, d, m, x, y, z) => { const b = new T3.Mesh(new T3.BoxGeometry(w, h, d), m); b.position.set(x, y, z); P.add(b); return b; };
+  box(1.4, 1.4, 7, body, 0, 0, 0); box(1.1, 1.0, 1.4, dark, 0, 0.6, -1.4);
+  box(11, 0.18, 1.7, body, 0, 0.8, -0.6); box(1.2, 0.2, 1.72, trim, 5, 0.81, -0.6); box(1.2, 0.2, 1.72, trim, -5, 0.81, -0.6);
+  box(4, 0.14, 1.1, body, 0, 0.1, 3.2); box(0.14, 1.5, 1.2, trim, 0, 0.8, 3.3);
+  const prop = box(2.4, 0.15, 0.08, dark, 0, 0, -3.6);
+  P.scale.setScalar(1.3); scene.add(P);
+  // gust streaks
+  const NS = 140, sp = new Float32Array(NS * 6), sg = new T3.BufferGeometry(); sg.setAttribute('position', new T3.BufferAttribute(sp, 3));
+  const streaks = new T3.LineSegments(sg, new T3.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 })); scene.add(streaks);
+  const seeds = Array.from({ length: NS }, () => [Math.random() - 0.5, Math.random() - 0.5, Math.random()]);
+  let pos = new T3.Vector3(0, 150, 0), yaw = 0;
+  function size() { const r = cv.parentElement.getBoundingClientRect(); R.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); }
+  new ResizeObserver(size).observe(cv.parentElement); size();
+  const tmp = new T3.Vector3();
+  return {
+    render(now) {
+      const s = plane.s, V = 45;
+      yaw = -s.psi;
+      // world position: integrate forward along heading (render-time approximation)
+      pos.y = Math.max(2, s.h);
+      const fwd = new T3.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
+      pos.addScaledVector(fwd, V * 0.016 * Math.min(S.speed, 4) * (S.paused ? 0 : 1));
+      P.position.copy(pos);
+      P.rotation.set(0, 0, 0); P.rotation.order = 'YXZ'; P.rotation.y = yaw; P.rotation.x = s.th; P.rotation.z = -s.phi;
+      prop.rotation.z += 0.9;
+      const shake = reduce ? 0 : Math.min(1.2, Math.hypot(s.gp, s.gq) * 0.12) * S.turb;
+      tmp.set(0, 7, 24).applyAxisAngle(new T3.Vector3(0, 1, 0), yaw).add(pos);
+      cam.position.lerp(tmp, 0.12); cam.position.x += (Math.random() - 0.5) * shake; cam.position.y += (Math.random() - 0.5) * shake;
+      cam.lookAt(pos.x + fwd.x * 10, pos.y + 1, pos.z + fwd.z * 10);
+      // recycle clouds around the plane
+      for (const c of clouds) { if (c.position.distanceTo(pos) > 1700) c.position.set(pos.x + fwd.x * 1500 + (Math.random() - 0.5) * 1600, 200 + Math.random() * 140, pos.z + fwd.z * 1500 + (Math.random() - 0.5) * 1600); }
+      // streaks rush past, more of them in rough air
+      const on = Math.round(NS * Math.min(1, S.turb * 1.2));
+      for (let i = 0; i < NS; i++) {
+        const [a, b, c] = seeds[i]; const k = ((c * 60 + now * 0.06 * (1 + S.turb)) % 60);
+        const p0 = new T3.Vector3(a * 30, b * 18, -40 + k * 1.5).applyAxisAngle(new T3.Vector3(0, 1, 0), yaw).add(pos);
+        const p1 = new T3.Vector3(a * 30, b * 18, -40 + k * 1.5 + 2.5 + S.turb * 4).applyAxisAngle(new T3.Vector3(0, 1, 0), yaw).add(pos);
+        if (i >= on) { p0.set(0, -999, 0); p1.set(0, -999, 0); }
+        sp.set([p0.x, p0.y, p0.z, p1.x, p1.y, p1.z], i * 6);
+      }
+      sg.attributes.position.needsUpdate = true;
+      R.render(scene, cam);
+    },
+  };
+})();
+
+// ---------------- brain view ----------------
+const brainView = (() => {
+  const cv = $('brainCv'), R = new T3.WebGLRenderer({ canvas: cv, antialias: true });
+  R.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  const scene = new T3.Scene(); scene.background = new T3.Color('#0a0e13');
+  const cam = new T3.PerspectiveCamera(34, 1, 1, 50000), root = new T3.Group(); scene.add(root);
+  const allPts = Object.values(DATA.shell).flat();
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < allPts.length; i += 3) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], allPts[i + k]); mx[k] = Math.max(mx[k], allPts[i + k]); }
+  // stand the nervous system up: brain on top, nerve cord hanging below (dataset z runs head -> tail)
+  const c = mn.map((v, k) => (v + mx[k]) / 2), span = Math.max(mx[0] - mn[0], mx[2] - mn[2]);
+  const X = (x, y, z) => [x - c[0], -(z - c[2]), (y - c[1])];
+  for (const p of Object.values(DATA.shell)) {
+    if (!p) continue; const pos = new Float32Array(p.length);
+    for (let i = 0; i < p.length; i += 3) pos.set(X(p[i], p[i + 1], p[i + 2]), i);
+    const gm = new T3.BufferGeometry(); gm.setAttribute('position', new T3.BufferAttribute(pos, 3));
+    root.add(new T3.Points(gm, new T3.PointsMaterial({ color: COL.hair, size: 4.5, transparent: true, opacity: 0.6, depthWrite: false })));
+  }
+  const nodes = DATA.nodes, CLS_COL = { lptc: COL.lptc, brain_in: COL.inter, dn: COL.dn, vnc_in: COL.inter, mn: COL.mn };
+  const segs = [];
+  nodes.forEach((n, ni) => { if (!n.skel) return; n.skel.a.forEach((par, j) => { if (par >= 0) segs.push([ni, par, j]); }); });
+  const pos = new Float32Array(segs.length * 6), vN = new Uint16Array(segs.length * 2), colors = new Float32Array(segs.length * 6), vY = new Float32Array(segs.length * 2);
+  segs.forEach(([ni, a, b], s) => { const p = nodes[ni].skel.p; const A = X(p[a * 3], p[a * 3 + 1], p[a * 3 + 2]), B = X(p[b * 3], p[b * 3 + 1], p[b * 3 + 2]);
+    pos.set(A, s * 6); pos.set(B, s * 6 + 3); vN[s * 2] = vN[s * 2 + 1] = ni; vY[s * 2] = A[1]; vY[s * 2 + 1] = B[1]; });
+  const lg = new T3.BufferGeometry(); lg.setAttribute('position', new T3.BufferAttribute(pos, 3)); lg.setAttribute('color', new T3.BufferAttribute(colors, 3));
+  root.add(new T3.LineSegments(lg, new T3.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, blending: T3.AdditiveBlending })));
+  const base = nodes.map(n => new T3.Color(CLS_COL[n.cls]));
+  const green = new T3.Color(COL.pb);
+  const level = new Float32Array(nodes.length), mean = new Float32Array(nodes.length), primed = { v: false };
+  const yTop = (mx[2] - c[2]), yBot = -(mx[2] - c[2]);
+  let wash = { t: -1e9, k: 0 };
+  let yaw = 0.0, pitch = 0.1, dist = span * 1.9, drag = null, idleAt = 0;
+  cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (!drag) return; yaw = drag[2] + (e.clientX - drag[0]) * 0.008; pitch = Math.max(-1.2, Math.min(1.2, drag[3] + (e.clientY - drag[1]) * 0.006)); });
+  cv.addEventListener('pointerup', () => { drag = null; idleAt = performance.now(); });
+  cv.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(span * 0.5, Math.min(span * 3, dist * (1 + e.deltaY * 0.001))); }, { passive: false });
+  function size() { const r = cv.parentElement.getBoundingClientRect(); R.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix(); }
+  new ResizeObserver(size).observe(cv.parentElement); size();
+  const dimOf = { lptc: 0.2, dn: 0.1, mn: 0.18, brain_in: 0.03, vnc_in: 0.03 };
+  const gainOf = { lptc: 1.2, dn: 0.75, mn: 1.0, brain_in: 0.22, vnc_in: 0.18 };
+  let last = performance.now();
+  return {
+    wash(k) { wash = { t: performance.now(), k: 0.35 + 0.65 * k }; },
+    render(now) {
+      const dtw = Math.min(0.1, (now - last) / 1000); last = now;
+      if (!drag && !reduce && now - idleAt > 2500) yaw += 0.05 * dtw;
+      cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(0, 0, 0);
+      const r = brain.r;
+      if (!primed.v) { for (let i = 0; i < nodes.length; i++) mean[i] = r[i]; primed.v = true; }
+      for (let i = 0; i < nodes.length; i++) {
+        mean[i] += (r[i] - mean[i]) * Math.min(1, dtw / 2);
+        const tgt = Math.min(1, Math.abs(r[i] - mean[i]) * 4);
+        level[i] += (tgt - level[i]) * (tgt > level[i] ? Math.min(1, dtw / 0.03) : Math.min(1, dtw / 0.4));   // fast attack, slow decay
+      }
+      const wt = (now - wash.t) / 600, wy = yTop - wt * (yTop - yBot) * 1.1;
+      for (let v = 0; v < vN.length; v++) {
+        const ni = vN[v], cl = nodes[ni].cls, b = base[ni], k = dimOf[cl] + level[ni] * gainOf[cl];
+        let rr = b.r * k, gg = b.g * k, bb = b.b * k;
+        if (wt >= 0 && wt < 1.2) { const w = Math.max(0, 1 - Math.abs(vY[v] - wy) / (span * 0.12)) * wash.k * 0.5; rr += green.r * w; gg += green.g * w; bb += green.b * w; }
+        colors[v * 3] = rr; colors[v * 3 + 1] = gg; colors[v * 3 + 2] = bb;
+      }
+      lg.attributes.color.needsUpdate = true;
+      R.render(scene, cam);
+    },
+  };
+})();
+$('legend').innerHTML = [['Visual rotation detectors', COL.lptc], ['Descending neurons', COL.dn], ['Interneurons', COL.inter], ['Wing motor neurons', COL.mn]]
+  .map(([t, c]) => `<span>${t}<i style="background:${c}"></i></span>`).join('') + `<span>${DATA.nodes.length} real neurons · male-cns v1.0</span>`;
+
+// ---------------- instruments ----------------
+function hidpi(cv) { const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; if (cv.width !== Math.round(r.width * d)) { cv.width = r.width * d; cv.height = r.height * d; } const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+function drawAtt() {
+  const [g, W, H] = hidpi($('att')), R0 = Math.min(W, H) / 2 - 2, s = plane.s;
+  g.clearRect(0, 0, W, H); g.save(); g.translate(W / 2, H / 2);
+  g.beginPath(); g.arc(0, 0, R0, 0, 7); g.clip();
+  g.rotate(-s.phi); const off = s.th * R0 * 1.6;
+  g.fillStyle = COL.sky; g.fillRect(-R0 * 2, -R0 * 3 + off, R0 * 4, R0 * 3);
+  g.fillStyle = COL.ground; g.fillRect(-R0 * 2, off, R0 * 4, R0 * 3);
+  g.strokeStyle = COL.text; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-R0, off); g.lineTo(R0, off); g.stroke();
+  g.lineWidth = 1; for (const p of [-20, -10, 10, 20]) { const y = off - p * Math.PI / 180 * R0 * 1.6; g.beginPath(); g.moveTo(-R0 * 0.2, y); g.lineTo(R0 * 0.2, y); g.stroke(); }
+  g.restore(); g.save(); g.translate(W / 2, H / 2);
+  g.strokeStyle = COL.dn; g.lineWidth = 3; g.beginPath(); g.moveTo(-R0 * 0.55, 0); g.lineTo(-R0 * 0.18, 0); g.lineTo(-R0 * 0.1, R0 * 0.1); g.moveTo(R0 * 0.55, 0); g.lineTo(R0 * 0.18, 0); g.lineTo(R0 * 0.1, R0 * 0.1); g.stroke();
+  g.strokeStyle = COL.hair; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, R0, 0, 7); g.stroke();
+  g.restore();
+}
+function drawCurve() {
+  const [g, W, H] = hidpi($('curve')), A = S.attempts, n = Math.min(A.length + 1, 90), start = Math.max(0, A.length + 1 - n);
+  g.clearRect(0, 0, W, H);
+  const pad = { l: 26, b: 14, t: 6 }, ymax = 90, y = v => H - pad.b - Math.min(v, ymax) / ymax * (H - pad.b - pad.t);
+  const bw = (W - pad.l) / Math.max(n, 30);
+  g.fillStyle = COL.muted; g.font = '500 10px "JetBrains Mono", monospace'; g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (const v of [0, 30, 60, 90]) g.fillText(v + 's', pad.l - 4, y(v));
+  g.setLineDash([2, 3]); g.strokeStyle = COL.muted; g.beginPath(); g.moveTo(pad.l, y(60)); g.lineTo(W, y(60)); g.stroke(); g.setLineDash([]);
+  for (let i = 0; i < n; i++) {
+    const idx = start + i, v = idx < A.length ? A[idx] : plane.s.t, x = pad.l + i * bw;
+    g.fillStyle = idx === A.length ? COL.text : idx === S.bestIdx ? COL.purple : '#3d4b5b';
+    g.fillRect(x + 0.5, y(v), Math.max(1, bw - 1.5), H - pad.b - y(v));
+  }
+  if (A.length >= 3) {   // rolling median of 5
+    g.strokeStyle = COL.pb; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i < Math.min(n, A.length - start); i++) { const idx = start + i, m = median(A.slice(Math.max(0, idx - 4), idx + 1)), x = pad.l + i * bw + bw / 2; i ? g.lineTo(x, y(m)) : g.moveTo(x, y(m)); }
+    g.stroke();
+  }
+  g.fillStyle = COL.muted; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(`attempts ${start + 1}–${start + n}`, pad.l, H - 2);
+}
+function drawStrip() {
+  const [g, W, H] = hidpi($('strip')), hist = S.hist, t1 = plane.s.t, t0 = t1 - 10;
+  g.clearRect(0, 0, W, H);
+  const ch = [['ROLL', h => h.phi / 1.3, COL.lptc], ['PITCH', h => h.th / 0.8, COL.lptc], ['YAW', h => h.r / 1.5, COL.lptc], ['AIL', h => h.u[0], COL.mn], ['ELEV', h => h.u[1], COL.mn], ['RUD', h => h.u[2], COL.mn]];
+  const lw = 44, rh = H / ch.length;
+  g.font = '500 10px "JetBrains Mono", monospace'; g.textBaseline = 'middle';
+  const pts = hist.filter(h => h.t >= t0 && h.t <= t1);
+  ch.forEach(([name, f, color], k) => {
+    const yc = rh * k + rh / 2;
+    g.fillStyle = COL.muted; g.fillText(name, 0, yc);
+    g.strokeStyle = COL.hair; g.lineWidth = 1; g.beginPath(); g.moveTo(lw, yc); g.lineTo(W, yc); g.stroke();
+    g.strokeStyle = color; g.lineWidth = 1; g.beginPath();
+    pts.forEach((h, i) => { const x = lw + (h.t - t0) / 10 * (W - lw), yy = yc - Math.max(-1, Math.min(1, f(h))) * (rh / 2 - 2); i ? g.lineTo(x, yy) : g.moveTo(x, yy); });
+    g.stroke();
+  });
+  g.strokeStyle = COL.text; g.beginPath(); g.moveTo(W - 1, 0); g.lineTo(W - 1, H); g.stroke();
+}
+function drawGauge() {
+  const [g, W, H] = hidpi($('gauge')), R0 = Math.min(W, H) / 2 - 6, s = plane.s;
+  g.clearRect(0, 0, W, H); g.save(); g.translate(W / 2, H / 2);
+  const a0 = Math.PI * 0.75, span = Math.PI * 1.5;
+  g.lineWidth = 6; g.lineCap = 'round';
+  g.strokeStyle = COL.hair; g.beginPath(); g.arc(0, 0, R0, a0, a0 + span); g.stroke();
+  const mag = Math.min(1, Math.hypot(s.gp, s.gq) / 4);
+  g.strokeStyle = mag > 0.7 ? COL.mn : COL.lptc; g.beginPath(); g.arc(0, 0, R0, a0, a0 + span * mag); g.stroke();
+  const tk = a0 + span * S.turb; g.strokeStyle = COL.text; g.lineWidth = 2; g.beginPath(); g.moveTo(Math.cos(tk) * (R0 - 9), Math.sin(tk) * (R0 - 9)); g.lineTo(Math.cos(tk) * (R0 + 5), Math.sin(tk) * (R0 + 5)); g.stroke();
+  g.fillStyle = COL.text; g.font = '500 13px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Math.hypot(s.gp, s.gq).toFixed(1), 0, 0);
+  g.restore();
+}
+function drawStick() {
+  const [g, W, H] = hidpi($('stick')), u = trainer.u, b = Math.min(W, H) - 18;
+  g.clearRect(0, 0, W, H);
+  g.strokeStyle = COL.hair; g.strokeRect(0.5, 0.5, b, b);
+  g.beginPath(); g.moveTo(b / 2, 0); g.lineTo(b / 2, b); g.moveTo(0, b / 2); g.lineTo(b, b / 2); g.stroke();
+  g.fillStyle = COL.mn; g.beginPath(); g.arc(b / 2 + u[0] * b / 2 * 0.9, b / 2 - u[1] * b / 2 * 0.9, 5, 0, 7); g.fill();
+  g.fillStyle = COL.hair; g.fillRect(0, b + 8, b, 6);
+  g.fillStyle = COL.mn; g.fillRect(b / 2 + Math.min(0, u[2]) * b / 2, b + 8, Math.abs(u[2]) * b / 2, 6);
+}
+function showDopamine(d) {
+  const v = Math.max(-1, Math.min(1, d / 15));
+  const bar = $('daBar'); bar.style.height = Math.abs(v) * 50 + '%'; bar.style.bottom = v >= 0 ? '50%' : (50 - Math.abs(v) * 50) + '%';
+  bar.style.background = v >= 0 ? COL.pb : COL.mn;
+  $('daVal').textContent = (d >= 0 ? '+' : '') + (d / 15).toFixed(2); $('daVal').style.color = d >= 0 ? COL.pb : COL.mn;
+}
+function setOdo(n) { $('attempt').textContent = n; }
+
+// ---------------- loop ----------------
+let lastFrame = performance.now(), lastUi = 0;
+function frame(now) {
+  const dtw = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  if (!S.paused && now >= S.frozenUntil) simulate(dtw * S.speed);
+  if (S.hist.length > 4000) S.hist.splice(0, 2000);
+  planeView.render(now); brainView.render(now);
+  drawAtt();
+  if (now - lastUi > 80) {
+    lastUi = now; $('tCur').textContent = fmt(plane.s.t); drawStrip(); drawGauge(); drawStick();
+    if (now - S.curveAt > 400 || !S.curveAt) { S.curveAt = now; drawCurve(); }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------------- controls ----------------
+$('pause').onclick = () => { S.paused = !S.paused; $('pause').textContent = S.paused ? 'Resume' : 'Pause'; $('pause').setAttribute('aria-pressed', S.paused); };
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { S.speed = +b.dataset.x; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+$('turb').oninput = e => { S.turb = +e.target.value; $('turbv').textContent = S.turb.toFixed(2); };
+$('reset').onclick = () => {
+  trainer.reset(); S.attempts = []; S.best = 0; S.bestIdx = -1; S.last = null; S.medianAtStart = null; S.saidDopa = false; S.hist = [];
+  $('tLast').textContent = '–'; $('tBest').textContent = '–'; showDopamine(0); startAttempt(); drawCurve();
+  setCaption("Brain reset. A fruit fly's brain is flying this plane. It has no idea how.", true);
+};
+$('rec').onclick = () => { const on = !document.body.classList.contains('rec'); document.body.classList.toggle('rec', on); $('rec').setAttribute('aria-pressed', on); };
+addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('rec')) $('rec').click(); });
+$('realBtn').onclick = () => { const open = $('realPop').hidden; $('realPop').hidden = !open; $('realBtn').setAttribute('aria-expanded', open); };
+})();
+</script>
