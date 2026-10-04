@@ -30,7 +30,11 @@ if c.source != src:
 
 ui = pathlib.Path(__file__).parent
 tpl = (ui / "template.html").read_text().replace("/*__FITFLY__*/", (ui / "fitfly.js").read_text())
+tpl = tpl.replace("/*__BRAIN_JS__*/", (ui / "brain.js").read_text())
+brain_path = pathlib.Path(BUNDLED).parent / "male-cns-brain3d.json"
+brain = json.load(open(brain_path)) if brain_path.exists() and c.source != "demo" else None
 dump = lambda o: json.dumps(o, separators=(",", ":")).replace("</", "<\\/")
-html = tpl.replace("__DATA__", dump(res)).replace("__CIRCUIT__", dump(circuit_json(c)))
+html = (tpl.replace("__DATA__", dump(res)).replace("__CIRCUIT__", dump(circuit_json(c)))
+        .replace("__BRAIN__", dump(brain)))
 pathlib.Path(a.out).write_text(html)
 print(f"wrote {a.out} ({len(html) // 1024} KB)")

@@ -79,6 +79,15 @@ sessions so there's something to compare with.
 FIT stream metrics: Pa:HR decoupling from moving samples (first vs second half), climbing
 from a smoothed altitude trace, and speed variability (intervals spike it).
 
+### The 3D brain
+
+`data/male-cns-brain3d.json` holds real skeletons (downsampled) for all 38 PNs, 97
+MBONs, both APLs and the same 400 Kenyon cells the page's grid shows, plus brain and
+mushroom-body outlines, all from neuPrint. The page replays each session's computed
+response on them: PNs light by glomerulus drive, then the Kenyon cells that actually
+fired, then APL, then MBONs by output. Which neurons light and how strongly comes from
+the model; the timing of the wave is illustrative.
+
 ## Notes
 
 - In the male fly, DA1 (the cVA pheromone glomerulus) has 15 PNs against DM1's 2,
