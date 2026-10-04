@@ -64,8 +64,9 @@ class Fly:
         self.kc_mbon = c.kc_mbon.astype(float).copy()
         self.kc_mbon0 = self.kc_mbon.copy()
         # APL feedback strength per KC: stronger reciprocal APL wiring -> more inhibition.
+        # (Blended with 1 so KCs the reconstruction left without APL contacts aren't divided by zero.)
         apl = np.sqrt(c.kc_apl * c.apl_kc)
-        self.apl_gain = apl / apl.mean() if apl.mean() > 0 else np.ones_like(apl)
+        self.apl_gain = 0.5 + 0.5 * apl / apl.mean() if apl.mean() > 0 else np.ones_like(apl)
         self.sign = np.array([MBON_SIGN.get(t.split("_")[0][:6], 0.0) for t in c.mbon_types])
         # Merge left/right copies of the same MBON type so each type gets one vote.
         self.mbon_names = np.array([t.split("_")[0] for t in c.mbon_types])
@@ -105,7 +106,9 @@ class Fly:
 
         m = self.mbon(kc)
         m0 = kc @ self.kc_mbon0
-        mz = (m - m0.mean(0)) / (m0.std(0) + 1e-9)                   # vs the fly's naive baseline
+        # Centre on this batch so learning shifts sessions relative to each other; it
+        # depresses synapses across the board, which would otherwise bias everything to "avoid".
+        mz = (m - m.mean(0)) / (m0.std(0) + 1e-9)
         mb = np.tanh((mz * self.sign).sum(1) / max(np.abs(self.sign).sum(), 1) * 2)
         innate = np.tanh(1.5 * (drive - 0.3) @ np.array([INNATE[g] for g in GLOMERULI]))
         valence = 0.6 * innate + 0.4 * mb

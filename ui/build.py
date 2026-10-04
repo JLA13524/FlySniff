@@ -7,7 +7,7 @@ The circuit goes in so the page can score .fit files you upload in the browser.
 import argparse, json, pathlib, sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from flysniff.connectome import Circuit, demo_circuit  # noqa: E402
+from flysniff.connectome import BUNDLED, Circuit, demo_circuit, from_neuprint_json  # noqa: E402
 from flysniff.webexport import circuit_json  # noqa: E402
 
 
@@ -19,7 +19,12 @@ a = ap.parse_args()
 
 res = json.load(open(a.results))
 src = res.get("meta", {}).get("circuit", {}).get("source", "demo")
-c = demo_circuit() if src == "demo" or not pathlib.Path(a.cache).exists() else Circuit.load(a.cache)
+if src == "demo":
+    c = demo_circuit()
+elif pathlib.Path(a.cache).exists():
+    c = Circuit.load(a.cache)
+else:
+    c = from_neuprint_json(BUNDLED)
 if c.source != src:
     print(f"warning: results came from {src} but embedding {c.source}")
 

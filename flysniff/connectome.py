@@ -183,12 +183,43 @@ def demo_circuit(seed: int = 7) -> Circuit:
     )
 
 
+BUNDLED = os.path.join(os.path.dirname(__file__), "..", "data", "male-cns-olfactory.json")
+
+
+def from_neuprint_json(path: str) -> Circuit:
+    """Load the compact export in data/ (same queries as fetch_circuit, run in a
+    browser against neuprint.janelia.org's public API and saved as JSON)."""
+    import json
+    d = json.load(open(path))
+    n_pn, n_kc, n_mb = len(d["pn_ids"]), len(d["kc_ids"]), len(d["mbon_ids"])
+
+    def dense(t, shape):
+        m = np.zeros(shape, np.float32)
+        np.add.at(m, (np.array(t[0]), np.array(t[1])), np.array(t[2], np.float32))
+        return m
+
+    return Circuit(
+        source=f"maleCNS:{d['dataset']}",
+        glom_of_pn=np.array([GLOMERULI.index(t.split("_")[0]) for t in d["pn_types"]]),
+        pn_kc=dense(d["pn_kc"], (n_pn, n_kc)),
+        kc_mbon=dense(d["kc_mbon"], (n_kc, n_mb)),
+        kc_apl=np.array(d["kc_apl"], np.float32),
+        apl_kc=np.array(d["apl_kc"], np.float32),
+        kc_types=np.array(d["kc_types"], dtype=str),
+        mbon_types=np.array(d["mbon_types"], dtype=str),
+        pn_types=np.array(d["pn_types"], dtype=str),
+    )
+
+
 def get_circuit(cache: str, demo: bool, dataset: str | None) -> Circuit:
     if demo:
         return demo_circuit()
     if os.path.exists(cache):
         print(f"Using cached circuit {cache}")
         return Circuit.load(cache)
+    if not dataset and os.path.exists(BUNDLED):
+        print("Using bundled MaleCNS v1.0 olfactory circuit (data/male-cns-olfactory.json)")
+        return from_neuprint_json(BUNDLED)
     token = os.environ.get("NEUPRINT_APPLICATION_CREDENTIALS") or os.environ.get("NEUPRINT_TOKEN")
     if not token:
         raise SystemExit("Set NEUPRINT_TOKEN (get one from your neuprint.janelia.org account page), "

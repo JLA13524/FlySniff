@@ -38,14 +38,13 @@ The verdict blends two routes, like the real fly:
 ```bash
 pip install -r requirements.txt   # fitdecode is only needed for --fit
 
-# offline, synthetic circuit + fake triathlon fortnight
+# fake triathlon fortnight through the real circuit
 python -m flysniff --demo
 
 # .fit / .fit.gz files or whole folders (watch exports, or export/activities from Strava)
 python -m flysniff --fit ~/Downloads/export/activities
 
 # your Strava bulk export (Settings › My Account › Download your data)
-export NEUPRINT_TOKEN=...      # neuprint.janelia.org › Account › Auth token
 python -m flysniff --csv ~/Downloads/export/activities.csv
 
 # or straight from the API (kudos + real HR decoupling)
@@ -53,10 +52,17 @@ export STRAVA_ACCESS_TOKEN=... # scope activity:read_all
 python -m flysniff --api -n 80 --streams
 ```
 
-The first real run pulls the PN/KC/MBON/APL subcircuit from neuPrint and caches
-it to `circuit.npz`. The dataset is auto-detected (anything named `male-cns*`);
-override it with `--dataset`. Use `--demo-circuit` to skip neuPrint and use real
-activities with the synthetic circuit.
+The real circuit ships in `data/male-cns-olfactory.json`: the uniglomerular PNs for
+the six glomeruli, all Kenyon cells, MBONs and APL from **male-cns v1.0**, with
+synapse counts (38 PNs, 4,064 KCs, 97 MBONs, ~73k connections), pulled from
+neuprint.janelia.org's public API on 4 Oct 2026. No token needed to run.
+
+To re-pull it yourself (or another version), set `NEUPRINT_TOKEN` and pass
+`--dataset male-cns:v1.0`; the result is cached to `circuit.npz`.
+`--demo-circuit` swaps in the synthetic stand-in instead.
+
+Data: MaleCNS v1.0 connectome, HHMI Janelia, Google Research and collaborators,
+CC BY 4.0 (https://male-cns.janelia.org).
 
 Then bake it into a page with `python ui/build.py results.json my-fly.html`, or drop
 `results.json` onto the published **Fly Sniff** page.
@@ -75,8 +81,9 @@ from a smoothed altitude trace, and speed variability (intervals spike it).
 
 ## Notes
 
-- PN types are matched like `DM1_lPN` / `V_l2PN`. If Janelia's naming differs in
-  your dataset version, change the regex in `connectome.py`.
+- In the male fly, DA1 (the cVA pheromone glomerulus) has 15 PNs against DM1's 2,
+  so "intervalness" gets far more Kenyon cell input than pace does. That's the real
+  anatomy, not a bug.
 - Without `--streams`, HR drift falls back to a crude (max − avg HR) proxy.
 - Features are z-scored within your own data, so the fly judges you against
   yourself. Everyone gets a favourite and a nemesis.

@@ -135,10 +135,11 @@ footer code { font-family: var(--mono); color: var(--fg); }
   </div>
 
   <footer>
-    Activity features drive six antennal-lobe glomeruli; PN→Kenyon cell→MBON synapse counts do the rest. The page opens on a demo
-    run with made-up training. Upload <code>.fit</code> or <code>.fit.gz</code> files (from your watch, or the <code>activities</code>
-    folder of a Strava export) and the fly smells them right here in your browser, using the circuit baked into this page. Files never
-    leave your browser. <code>python -m flysniff</code> does the same with the real MaleCNS circuit, plus kudos as dopamine; drop its
+    Activity features drive six antennal-lobe glomeruli; from there it's the real wiring of the fly's smell pathway, 38 projection
+    neurons, 4,064 Kenyon cells and 97 MBONs with their synapse counts, from the MaleCNS v1.0 connectome (Janelia, Google Research
+    and collaborators, via neuPrint, CC BY 4.0). The page opens on a demo run with made-up training. Upload <code>.fit</code> or <code>.fit.gz</code> files (from your watch, or the <code>activities</code>
+    folder of a Strava export) and the fly smells them right here in your browser. Files never
+    leave your browser. <code>python -m flysniff</code> does the same offline, plus kudos as dopamine; drop its
     <code>results.json</code> here to see it. Not science.
   </footer>
 </div>
@@ -262,7 +263,7 @@ function play(i) {
   document.querySelectorAll('.feed li').forEach(li => li.setAttribute('aria-current', li.dataset.i == cur));
   const v = A.valence;
   $('cap').innerHTML = `<span class="v" style="background:${vcol(v)}">${esc(A.verdict)} · ${v > 0 ? '+' : ''}${v.toFixed(2)}</span><br>${esc(A.caption)}`;
-  $('handle').textContent = '@fly_' + ((A.uploaded ? CIRCUIT.source : R.meta?.circuit?.source) === 'demo' ? 'demo' : 'malecns') + ' · ' + fmtDate(A.date) + ' · ' + A.kc_active + ' Kenyon cells fired';
+  $('handle').textContent = '@fly_' + ((A.uploaded ? CIRCUIT.source : R.meta?.circuit?.source) === 'demo' ? 'demo' : 'malecns') + ' · ' + fmtDate(A.date) + ' · ' + A.kc_active + ' KCs fired';
   $('kudos').textContent = A.kudos ?? '–';
   drawGlom(A);
   t0 = performance.now();
@@ -347,7 +348,7 @@ function neurons(t, top) {
   y += rows * ch + 10;
   // MBONs: diverging from centre, colour = approach/avoid role
   const mb = Object.entries(A.mbon || {}); if (!mb.length) return;
-  label('MBONs · output vs naive fly');
+  label('MBONs · output vs your other sessions');
   const bw = w / mb.length, mid = y + 22 * Math.max(S, .85), mx = Math.max(1, ...mb.map(([, v]) => Math.abs(v)));
   const AVOID = ['MBON01','MBON03','MBON04','MBON05','MBON29'];
   mb.forEach(([n, v], k) => {

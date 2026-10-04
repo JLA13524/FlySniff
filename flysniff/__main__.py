@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 
 from . import strava
-from .connectome import GLOMERULI, get_circuit
+from .connectome import BUNDLED, GLOMERULI, get_circuit
 from .fly import SMELLS, Fly
 
 
@@ -17,8 +17,8 @@ def main() -> None:
     src.add_argument("--csv", help="Strava bulk-export activities.csv")
     src.add_argument("--api", action="store_true", help="use STRAVA_ACCESS_TOKEN")
     src.add_argument("--fit", nargs="+", metavar="PATH", help=".fit/.fit.gz files or folders (e.g. export/activities)")
-    p.add_argument("--demo", action="store_true", help="synthetic circuit + fake activities (offline)")
-    p.add_argument("--demo-circuit", action="store_true", help="synthetic circuit, real activities")
+    p.add_argument("--demo", action="store_true", help="fake activities (uses the bundled real circuit)")
+    p.add_argument("--demo-circuit", action="store_true", help="use the synthetic stand-in circuit instead of MaleCNS")
     p.add_argument("-n", type=int, default=60, help="activities to pull from the API")
     p.add_argument("--streams", action="store_true", help="fetch HR/speed streams for real decoupling (slower)")
     p.add_argument("--dataset", help="neuPrint dataset, e.g. male-cns:v1.0 (auto-detected)")
@@ -44,7 +44,8 @@ def main() -> None:
     acts = acts.dropna(subset=["speed_ms"]).sort_values("date").reset_index(drop=True)
     print(f"{len(acts)} activities")
 
-    circuit = get_circuit(a.cache, a.demo or a.demo_circuit, a.dataset)
+    synthetic = a.demo_circuit or (a.demo and not os.path.exists(BUNDLED) and not os.path.exists(a.cache))
+    circuit = get_circuit(a.cache, synthetic, a.dataset)
     print("circuit:", circuit.describe())
 
     raw = strava.raw_metrics(acts)
